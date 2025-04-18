@@ -1,0 +1,26 @@
+backend\venv\
+backend\.vscode\
+backend\backend\__pycache__\
+backend\ersathi\__pycache__\
+backend\.env\
+
+# Python virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+
+# Database files (if applicable)
+*.sqlite3

@@ -1,0 +1,115 @@
+<!-- templates/agreement_template.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Construction Agreement</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { text-align: center; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+        .details { margin-left: 20px; }
+        .signature { margin-top: 50px; }
+        .signature-line { border-top: 1px solid #000; width: 200px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>CONTRACT AGREEMENT</h1>
+    <h2>FOR {{ service.name }}</h2>
+
+    <div class="section">
+        <div class="section-title">Contractor:</div>
+        <div class="details">
+            <p>{{ company.company_name }}</p>
+            <p>{{ company.address }}</p>
+            <p>Representative: {{ company_representative_name }}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Client:</div>
+        <div class="details">
+            <p>{{ inquiry.full_name }}</p>
+            <p>{{ inquiry.location }}</p>
+            <p>Email: {{ inquiry.email }}</p>
+            <p>Phone: {{ inquiry.phone_number }}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Service Details:</div>
+        <div class="details">
+            <p>Service: {{ service.name }}</p>
+            <p>Category: {{ service.category.name }}</p>
+            <p>Service Charge: Rs. {{ service_charge }}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Scope of Work:</div>
+        <div class="details">
+            {% if service.name == "Engineering Consulting" %}
+                <p>Provide expert consultation on engineering aspects of the project, including structural analysis and design recommendations.</p>
+            {% elif service.name == "Construction Management & Cost Estimation" %}
+                <p>Manage the construction process, oversee project timelines, and provide detailed cost estimation for the project.</p>
+            {% elif service.name == "Comprehensive Building Planning & Design" %}
+                <p>Develop a comprehensive building plan, including architectural design, layout, and detailed blueprints.</p>
+            {% elif service.name == "Structural & Geotechnical Consultation" %}
+                <p>Conduct structural and geotechnical analysis, including soil testing and foundation design recommendations.</p>
+            {% elif service.name == "MEP System Design (Mechanical, Electrical & Plumbing)" %}
+                <p>Design mechanical, electrical, and plumbing systems for the building, ensuring compliance with standards.</p>
+            {% else %}
+                <p>{{ custom_scope_of_work }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Additional Terms (if any):</div>
+        <div class="details">
+            <p>{{ additional_terms|default:"None" }}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Payment Details:</div>
+        <div class="details">
+            <p>Total Service Charge: Rs. {{ service_charge }}</p>
+            <p>Payment will be made as per the agreed milestones between the client and contractor.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Service Period:</div>
+        <div class="details">
+            <p>The contractor shall complete the work within the agreed timeline as discussed during the appointment.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Governing Law:</div>
+        <div class="details">
+            <p>This contract shall be governed by the laws of Nepal.</p>
+        </div>
+    </div>
+
+    <div class="signature">
+        <div style="display: flex; justify-content: space-between;">
+            <div>
+                <p>FOR AND ON BEHALF OF THE CONTRACTOR</p>
+                <p>Name: {{ company_representative_name }}</p>
+                <p>Company: {{ company.company_name }}</p>
+                <div class="signature-line"></div>
+                <p>Date: ________________</p>
+            </div>
+            <div>
+                <p>FOR AND ON BEHALF OF THE CLIENT</p>
+                <p>Name: {{ inquiry.full_name }}</p>
+                <div class="signature-line"></div>
+                <p>Date: ________________</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
