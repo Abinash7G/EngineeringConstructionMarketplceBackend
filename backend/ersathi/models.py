@@ -3,7 +3,7 @@ from django.db import models
 import uuid
 from django.contrib.auth.models import AbstractUser
 from django.forms import ValidationError
-
+from django.conf import settings
 
 
 
@@ -17,6 +17,7 @@ COMPANY_TYPE_CHOICES = [
 
 # Company Registration Model
 class Company(models.Model):
+    customuser = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="associated_company", null=True, blank=True)
     company_type = models.CharField(max_length=50, choices=COMPANY_TYPE_CHOICES)
     company_name = models.CharField(max_length=255)
     company_email = models.EmailField(unique=True)
@@ -75,7 +76,7 @@ class CompanyServices(models.Model):
 class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=10, blank=True, null=True)
     is_verified = models.BooleanField(default=False)  # Field to track email verification
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, blank = True, null= True) #if company delet, the user will delete
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, blank = True, null= True, related_name="company_users") #if company delet, the user will delete
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)  # Store Stripe Customer ID  NEW
     class Meta:
         verbose_name = "Custom User"
@@ -382,23 +383,23 @@ class SafetyTrainingData(ServiceFormData):
 
 
 
-# Signal to send WebSocket notification on new inquiry
-from django.dispatch import receiver
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-from django.db.models.signals import post_save
-@receiver(post_save, sender=Inquiry)
-def send_inquiry_notification(sender, instance, created, **kwargs):
-    if created:
-        company = instance.company
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'company_{company.id}_inquiries',
-            {
-                'type': 'inquiry_update',
-                'message': 'New inquiry received'
-            }
-        )
+# # Signal to send WebSocket notification on new inquiry
+# from django.dispatch import receiver
+# from channels.layers import get_channel_layer
+# from asgiref.sync import async_to_sync
+# from django.db.models.signals import post_save
+# @receiver(post_save, sender=Inquiry)
+# def send_inquiry_notification(sender, instance, created, **kwargs):
+#     if created:
+#         company = instance.company
+#         channel_layer = get_channel_layer()
+#         async_to_sync(channel_layer.group_send)(
+#             f'company_{company.id}_inquiries',
+#             {
+#                 'type': 'inquiry_update',
+#                 'message': 'New inquiry received'
+#             }
+#         )
 
 
 
@@ -663,3 +664,21 @@ class Plan(models.Model):
 
     class Meta:
         ordering = ['days']
+
+
+from django.db import models
+from django.conf import settings
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    type = models.CharField(max_length=50)  # e.g., "inquiry_new", "order_status"
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["recipient", "created_at"])]
+
+    def __str__(self):
+        return f"Notification for {self.recipient.username}: {self.message}"

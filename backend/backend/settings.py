@@ -158,6 +158,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
     "http://localhost:3001",  # frontend's URL
     "http://127.0.0.1",
+    "http://127.0.0.1:3000",  # Add these for safety
     "http://localhost"
     
 ]
@@ -165,7 +166,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1",
-    "http://localhost"
+    "http://localhost",
 
 ]
 CSRF_COOKIE_SECURE = False

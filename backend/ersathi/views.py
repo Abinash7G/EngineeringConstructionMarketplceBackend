@@ -577,6 +577,8 @@ def approve_company(request, pk):
         user.is_verified = True
         user.company = company
         user.save()
+        company.customuser = user
+        company.save()
         
 
         # Check if the group "admin" exists
@@ -1353,7 +1355,15 @@ class OrderCreateView(APIView):
                 buying_status=None if order_type == "renting" else "pending",
                 renting_status=None if order_type == "buying" else "pending",
             )
-
+            # order_status_updated.send(
+            # sender=Order,
+            # instance=order,
+            # created=False,
+            # raw=False,
+            # using='default',
+            # update_fields=None,
+            # user=request.user  # <--- extra data here
+            # )
             for item in buying_items:
                 OrderItem.objects.create(
                     order=order,
@@ -1541,7 +1551,7 @@ from rest_framework import status
 from .models import Order, OrderItem, Company, CustomUser, PaymentDistribution
 from .serializers import OrderSerializer
 from rest_framework.permissions import IsAuthenticated
-
+# from .signals import order_status_updated
 class UpdateOrderStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1580,6 +1590,15 @@ class UpdateOrderStatusView(APIView):
                 )
 
             order.save()
+            # order_status_updated.send(
+            # sender=Order,
+            # instance=order,
+            # created=True,
+            # raw=False,
+            # using='default',
+            # update_fields=None,
+            # user=request.user  # <--- extra data here
+            # )
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Order.DoesNotExist:
@@ -1893,131 +1912,16 @@ def get_company_services_by_id(request, company_id):
         logger.error(f"Error in get_company_services_by_id: {str(e)}")
         return JsonResponse({"error": str(e)}, status=400)
     
-
-##inquary
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from .models import Inquiry, Appointment, Company
-from .serializers import InquirySerializer, AppointmentSerializer
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from datetime import timedelta, datetime
-from django.core.mail import send_mail
-import logging
-
-# Set up logging
-logger = logging.getLogger(__name__)
-
-# Signal to send WebSocket notification on new inquiry
-from django.dispatch import receiver
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-from django.db.models.signals import post_save
-
-@receiver(post_save, sender=Inquiry)
-def send_inquiry_notification(sender, instance, created, **kwargs):
-    if created:
-        company = instance.company
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'company_{company.id}_inquiries',
-            {
-                'type': 'inquiry_update',
-                'message': 'New inquiry received'
-            }
-        )
-
-# class SubmitInquiryView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, company_id):
-#         try:
-#             user = request.user
-#             company = get_object_or_404(Company, id=company_id)
-#             print("Raw POST data:", dict(request.POST))
-
-#             inquiry_data = {
-#                 'user': user,
-#                 'company': company,
-#                 'full_name': request.POST.get('full_name', ''),
-#                 'location': request.POST.get('location', ''),
-#                 'email': request.POST.get('email', ''),
-#                 'phone_number': request.POST.get('phone_number', ''),
-#                 'category': request.POST.get('category', ''),
-#                 'sub_service': request.POST.get('sub_service', ''),
-#                 'status': 'Pending',
-#             }
-
-#             inquiry = Inquiry(**inquiry_data)
-#             inquiry.save()
-            
-
-
-
-
-#             for field in ['site_plan', 'architectural_plan', 'soil_test_report', 'foundation_design',
-#                          'electrical_plan', 'plumbing_plan', 'hvac_plan', 'construction_permit', 'cost_estimation']:
-#                 if field in request.FILES:
-#                     setattr(inquiry, field, request.FILES[field])
-#             inquiry.save()
-
-#             tomorrow = timezone.now().date() + timedelta(days=1)
-#             daily_appointments = Appointment.objects.filter(
-#                 company=company,
-#                 appointment_date__date=tomorrow
-#             ).count()
-
-#             if daily_appointments >= 20:
-#                 tomorrow += timedelta(days=1)
-#                 daily_appointments = 0
-
-#             start_time = datetime.combine(tomorrow, datetime.strptime('10:00', '%H:%M').time())
-#             minutes_offset = daily_appointments * 21
-#             appointment_time = start_time + timedelta(minutes=minutes_offset)
-
-#             appointment = Appointment(
-#                 inquiry=inquiry,
-#                 company=company,
-#                 appointment_date=appointment_time
-#             )
-#             appointment.save()
-
-#             inquiry.status = 'Scheduled'
-#             inquiry.save()
-
-#             send_mail(
-#                 'Appointment Confirmation',
-#                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
-#                 'fybproject6@gmail.com',
-#                 [inquiry.email],
-#                 fail_silently=True,
-#             )
-
-#             serializer = InquirySerializer(inquiry)
-#             return Response({
-#                 'message': 'Inquiry submitted successfully',
-#                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
-#                 'data': serializer.data
-#             }, status=status.HTTP_201_CREATED)
-
-#         except Company.DoesNotExist:
-#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error in SubmitInquiryView: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# views.py
+#4/22
 # from rest_framework.views import APIView
 # from rest_framework.response import Response
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework import status
-# from .models import *
-# from .serializers import *
+# from .models import Inquiry, Appointment, Company, EngineeringConsultingData, BuildingConstructionData, PostConstructionMaintenanceData, SafetyTrainingData
+# from .serializers import InquirySerializer
 # from django.shortcuts import get_object_or_404
 # from django.utils import timezone
-# from datetime import timedelta, datetime
+# from datetime import datetime, timedelta
 # from django.core.mail import send_mail
 
 # class SubmitInquiryView(APIView):
@@ -2027,6 +1931,8 @@ def send_inquiry_notification(sender, instance, created, **kwargs):
 #         try:
 #             user = request.user
 #             company = get_object_or_404(Company, id=company_id)
+            
+#             # Handle num_floors safely
 #             num_floors_value = request.POST.get('num_floors', None)
 #             num_floors = None
 #             if num_floors_value and num_floors_value.strip() and num_floors_value != 'null':
@@ -2036,6 +1942,7 @@ def send_inquiry_notification(sender, instance, created, **kwargs):
 #                         num_floors = None
 #                 except ValueError:
 #                     num_floors = None
+
 #             # Create Inquiry
 #             inquiry_data = {
 #                 'user': user,
@@ -2055,57 +1962,79 @@ def send_inquiry_notification(sender, instance, created, **kwargs):
 #             if inquiry.category == "Engineering Consulting":
 #                 service_data = EngineeringConsultingData(inquiry=inquiry)
 #                 self._populate_service_data(service_data, request)
+#                 service_data.save()
 #             elif inquiry.category == "Building Construction Services":
 #                 service_data = BuildingConstructionData(inquiry=inquiry)
 #                 self._populate_service_data(service_data, request)
+#                 service_data.save()
 #             elif inquiry.category == "Post-Construction Maintenance":
 #                 service_data = PostConstructionMaintenanceData(inquiry=inquiry)
 #                 self._populate_service_data(service_data, request)
+#                 service_data.save()
 #             elif inquiry.category == "Safety and Training Services":
 #                 service_data = SafetyTrainingData(inquiry=inquiry)
 #                 self._populate_service_data(service_data, request)
-#             service_data.save()
+#                 service_data.save()
 
-#             # Schedule appointment
-#             tomorrow = timezone.now().date() + timedelta(days=1)
-#             daily_appointments = Appointment.objects.filter(
-#                 company=company,
-#                 appointment_date__date=tomorrow
-#             ).count()
+#             # Schedule appointment only for Engineering Consulting and Building Construction Services
+#             if inquiry.category in ["Engineering Consulting", "Building Construction Services"]:
+#                 # Define time constraints
+#                 start_hour = 10  # 10:00 AM
+#                 end_hour = 17   # 5:00 PM
+#                 slot_duration = 21  # Duration in minutes per appointment
+#                 max_slots_per_day = ((end_hour - start_hour) * 60) // slot_duration  # Total slots between 10 AM and 5 PM
 
-#             if daily_appointments >= 20:
-#                 tomorrow += timedelta(days=1)
-#                 daily_appointments = 0
+#                 # Start checking from tomorrow
+#                 current_date = timezone.now().date() + timedelta(days=1)
+#                 while True:
+#                     daily_appointments = Appointment.objects.filter(
+#                         company=company,
+#                         appointment_date__date=current_date
+#                     ).count()
 
-#             start_time = datetime.combine(tomorrow, datetime.strptime('10:00', '%H:%M').time())
-#             minutes_offset = daily_appointments * 21
-#             appointment_time = start_time + timedelta(minutes=minutes_offset)
+#                     if daily_appointments < max_slots_per_day:
+#                         # Calculate the appointment time
+#                         start_time = datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
+#                         minutes_offset = daily_appointments * slot_duration
+#                         appointment_time = start_time + timedelta(minutes=minutes_offset)
 
-#             appointment = Appointment(
-#                 inquiry=inquiry,
-#                 company=company,
-#                 appointment_date=appointment_time
-#             )
-#             appointment.save()
+#                         # Ensure the appointment doesn't exceed 5:00 PM
+#                         end_time = appointment_time + timedelta(minutes=slot_duration)
+#                         if end_time.time() <= datetime.strptime('17:00', '%H:%M').time():
+#                             appointment = Appointment(
+#                                 inquiry=inquiry,
+#                                 company=company,
+#                                 appointment_date=appointment_time
+#                             )
+#                             appointment.save()
 
-#             inquiry.status = 'Scheduled'
-#             inquiry.save()
+#                             inquiry.status = 'Scheduled'
+#                             inquiry.save()
 
-#             # Send email
-#             send_mail(
-#                 'Appointment Confirmation',
-#                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
-#                 'fybproject6@gmail.com',
-#                 [inquiry.email],
-#                 fail_silently=True,
-#             )
+#                             # Send email
+#                             send_mail(
+#                                 'Appointment Confirmation',
+#                                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
+#                                 'fybproject6@gmail.com',
+#                                 [inquiry.email],
+#                                 fail_silently=True,
+#                             )
 
-#             serializer = InquirySerializer(inquiry)
-#             return Response({
-#                 'message': 'Inquiry submitted successfully',
-#                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
-#                 'data': serializer.data
-#             }, status=status.HTTP_201_CREATED)
+#                             serializer = InquirySerializer(inquiry)
+#                             return Response({
+#                                 'message': 'Inquiry submitted successfully',
+#                                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
+#                                 'data': serializer.data
+#                             }, status=status.HTTP_201_CREATED)
+#                     # If the day is full, move to the next day
+#                     current_date += timedelta(days=1)
+#             else:
+#                 # For other categories, just return success without scheduling an appointment
+#                 serializer = InquirySerializer(inquiry)
+#                 return Response({
+#                     'message': 'Inquiry submitted successfully. No appointment required for this service.',
+#                     'data': serializer.data
+#                 }, status=status.HTTP_201_CREATED)
 
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -2117,7 +2046,6 @@ def send_inquiry_notification(sender, instance, created, **kwargs):
 #                 setattr(service_data, field_name, request.POST[field_name])
 #             elif field_name in request.FILES:
 #                 setattr(service_data, field_name, request.FILES[field_name])
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -2127,7 +2055,9 @@ from .serializers import InquirySerializer
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import datetime, timedelta
-from django.core.mail import send_mail
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SubmitInquiryView(APIView):
     permission_classes = [IsAuthenticated]
@@ -2199,7 +2129,7 @@ class SubmitInquiryView(APIView):
 
                     if daily_appointments < max_slots_per_day:
                         # Calculate the appointment time
-                        start_time = datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
+                        start_time = datetime.datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
                         minutes_offset = daily_appointments * slot_duration
                         appointment_time = start_time + timedelta(minutes=minutes_offset)
 
@@ -2251,6 +2181,10 @@ class SubmitInquiryView(APIView):
                 setattr(service_data, field_name, request.POST[field_name])
             elif field_name in request.FILES:
                 setattr(service_data, field_name, request.FILES[field_name])
+
+
+
+
 # ersathi/views.py
 # views.py
 from rest_framework.views import APIView
@@ -3860,6 +3794,7 @@ class SubscribeView(APIView):
         except Exception as e:
             logger.exception(f"Error in SubscribeView: {str(e)}")
             return Response({'error': f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class PlanListView(APIView):
     def get(self, request, company_id=None):
         try:
@@ -4128,3 +4063,138 @@ class SubscriptionAnalyticsView(APIView):
             logger.error(f"Error in SubscriptionAnalyticsView: {str(e)}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# from django.http import StreamingHttpResponse
+# import json
+# import time
+# from django.contrib.auth.decorators import login_required
+# from .models import Notification
+# from rest_framework.authentication import TokenAuthentication
+# from rest_framework.exceptions import AuthenticationFailed
+
+# permission_classes = [IsAuthenticated]
+# def sse_notifications(request):
+#     auth = TokenAuthentication()
+#     user_auth_tuple = auth.authenticate(request)
+#     if not user_auth_tuple:
+#         raise AuthenticationFailed('Invalid or missing token')
+#     def event_stream():
+#         last_id = None
+#         while True:
+#             notifications = Notification.objects.filter(
+#                 recipient=request.user, id__gt=last_id if last_id else 0
+#             )
+#             for notification in notifications:
+#                 data = {
+#                     "id": notification.id,
+#                     "message": notification.message,
+#                     "type": notification.type,
+#                     "created_at": notification.created_at.isoformat(),
+#                     "is_read": notification.is_read,
+#                 }
+#                 yield f"data: {json.dumps(data)}\n\n"
+#                 last_id = notification.id
+#             time.sleep(5)  # Poll every 5 seconds
+#     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+#     response["Cache-Control"] = "no-cache"
+#     return response
+import json
+import time
+import logging
+from django.http import StreamingHttpResponse
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
+from django.contrib.auth.models import AnonymousUser
+from django.db import DatabaseError
+from .models import Notification
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+def sse_notifications(request):
+    # Prefer token from Authorization header
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    token = None
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+    else:
+        token = request.GET.get('token')  # Fallback to query param
+
+    user = AnonymousUser()
+    if token:
+        jwt_auth = JWTAuthentication()
+        try:
+            validated_token = jwt_auth.get_validated_token(token)
+            user = jwt_auth.get_user(validated_token)
+        except (InvalidToken, AuthenticationFailed) as e:
+            logger.error(f"Authentication error: {e}")
+
+    def event_stream():
+        if not user.is_authenticated:
+            yield "event: error\ndata: Unauthorized\nretry: 10000\n\n"
+            return
+
+        last_id = 0
+        heartbeat_interval = 15  # Send heartbeat every 15 seconds
+        last_heartbeat = time.time()
+
+        while True:
+            try:
+                # Check for new notifications
+                notifications = Notification.objects.filter(
+                    recipient=user, 
+                    id__gt=last_id, is_read = False
+                ).order_by("id")
+                
+        
+                for notification in notifications:
+                    data = {
+                        "id": notification.id,
+                        "message": notification.message,
+                        "type": notification.type,
+                        "created_at": notification.created_at.isoformat(),
+                        "is_read": notification.is_read,
+                    }
+                    yield f"event: notification\ndata: {json.dumps(data)}\n\n"
+                    last_id = notification.id
+
+                # Send heartbeat to keep connection alive
+                if time.time() - last_heartbeat >= heartbeat_interval:
+                    yield "event: heartbeat\ndata: keepalive\n\n"
+                    last_heartbeat = time.time()
+
+                time.sleep(3)  # Polling interval
+
+            except DatabaseError as e:
+                logger.error(f"Database error: {e}")
+                yield f"event: error\ndata: Database error, retrying...\nretry: 10000\n\n"
+                time.sleep(10)  # Back off on DB errors
+
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
+                yield f"event: error\ndata: Unexpected error, closing connection\n\n"
+                break
+
+    response = StreamingHttpResponse(
+        event_stream(),
+        content_type="text/event-stream"
+    )
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Notification
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request):
+    notification_id = request.data.get("notification_id")
+    try:
+        notification = Notification.objects.get(id=notification_id, recipient=request.user)
+        notification.is_read = True
+        notification.save()
+        return Response({"status": "success"})
+    except Notification.DoesNotExist:
+        return Response({"status": "error", "message": "Notification not found"}, status=404)

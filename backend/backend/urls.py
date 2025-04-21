@@ -239,6 +239,8 @@ urlpatterns = [
     path('api/appointment-analytics/', AppointmentAnalyticsView.as_view(), name='appointment-analytics'),
     path('api/subscription-analytics/', views.SubscriptionAnalyticsView.as_view(), name='subscription-analytics'),
     path('api/total-revenue/', views.TotalRevenueView.as_view(), name='total-revenue'),
+    path("api/sse/notifications/", views.sse_notifications, name="sse_notifications"),
+    path("api/notifications/mark_read/", views.mark_notification_read, name="mark_notification_read"),
 ]
 # Serve media files during development 
 if settings.DEBUG:  
