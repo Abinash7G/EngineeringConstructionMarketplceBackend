@@ -2046,6 +2046,143 @@ def get_company_services_by_id(request, company_id):
 #                 setattr(service_data, field_name, request.POST[field_name])
 #             elif field_name in request.FILES:
 #                 setattr(service_data, field_name, request.FILES[field_name])
+#4/22
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework import status
+# from .models import Inquiry, Appointment, Company, EngineeringConsultingData, BuildingConstructionData, PostConstructionMaintenanceData, SafetyTrainingData
+# from .serializers import InquirySerializer
+# from django.shortcuts import get_object_or_404
+# from django.utils import timezone
+# from datetime import datetime, timedelta
+# import logging
+
+# logger = logging.getLogger(__name__)
+
+# class SubmitInquiryView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request, company_id):
+#         try:
+#             user = request.user
+#             company = get_object_or_404(Company, id=company_id)
+            
+#             # Handle num_floors safely
+#             num_floors_value = request.POST.get('num_floors', None)
+#             num_floors = None
+#             if num_floors_value and num_floors_value.strip() and num_floors_value != 'null':
+#                 try:
+#                     num_floors = int(num_floors_value)
+#                     if num_floors < 1:  # Ensure positive integer
+#                         num_floors = None
+#                 except ValueError:
+#                     num_floors = None
+
+#             # Create Inquiry
+#             inquiry_data = {
+#                 'user': user,
+#                 'company': company,
+#                 'full_name': request.POST.get('full_name', ''),
+#                 'location': request.POST.get('location', ''),
+#                 'email': request.POST.get('email', ''),
+#                 'phone_number': request.POST.get('phone_number', ''),
+#                 'category': request.POST.get('category', ''),
+#                 'sub_service': request.POST.get('sub_service', ''),
+#                 'status': 'Pending',
+#             }
+#             inquiry = Inquiry(**inquiry_data)
+#             inquiry.save()
+
+#             # Create service-specific data based on category
+#             if inquiry.category == "Engineering Consulting":
+#                 service_data = EngineeringConsultingData(inquiry=inquiry)
+#                 self._populate_service_data(service_data, request)
+#                 service_data.save()
+#             elif inquiry.category == "Building Construction Services":
+#                 service_data = BuildingConstructionData(inquiry=inquiry)
+#                 self._populate_service_data(service_data, request)
+#                 service_data.save()
+#             elif inquiry.category == "Post-Construction Maintenance":
+#                 service_data = PostConstructionMaintenanceData(inquiry=inquiry)
+#                 self._populate_service_data(service_data, request)
+#                 service_data.save()
+#             elif inquiry.category == "Safety and Training Services":
+#                 service_data = SafetyTrainingData(inquiry=inquiry)
+#                 self._populate_service_data(service_data, request)
+#                 service_data.save()
+
+#             # Schedule appointment only for Engineering Consulting and Building Construction Services
+#             if inquiry.category in ["Engineering Consulting", "Building Construction Services"]:
+#                 # Define time constraints
+#                 start_hour = 10  # 10:00 AM
+#                 end_hour = 17   # 5:00 PM
+#                 slot_duration = 21  # Duration in minutes per appointment
+#                 max_slots_per_day = ((end_hour - start_hour) * 60) // slot_duration  # Total slots between 10 AM and 5 PM
+
+#                 # Start checking from tomorrow
+#                 current_date = timezone.now().date() + timedelta(days=1)
+#                 while True:
+#                     daily_appointments = Appointment.objects.filter(
+#                         company=company,
+#                         appointment_date__date=current_date
+#                     ).count()
+
+#                     if daily_appointments < max_slots_per_day:
+#                         # Calculate the appointment time
+#                         start_time = datetime.datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
+#                         minutes_offset = daily_appointments * slot_duration
+#                         appointment_time = start_time + timedelta(minutes=minutes_offset)
+
+#                         # Ensure the appointment doesn't exceed 5:00 PM
+#                         end_time = appointment_time + timedelta(minutes=slot_duration)
+#                         if end_time.time() <= datetime.strptime('17:00', '%H:%M').time():
+#                             appointment = Appointment(
+#                                 inquiry=inquiry,
+#                                 company=company,
+#                                 appointment_date=appointment_time
+#                             )
+#                             appointment.save()
+
+#                             inquiry.status = 'Scheduled'
+#                             inquiry.save()
+
+#                             # Send email
+#                             send_mail(
+#                                 'Appointment Confirmation',
+#                                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
+#                                 'fybproject6@gmail.com',
+#                                 [inquiry.email],
+#                                 fail_silently=True,
+#                             )
+
+#                             serializer = InquirySerializer(inquiry)
+#                             return Response({
+#                                 'message': 'Inquiry submitted successfully',
+#                                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
+#                                 'data': serializer.data
+#                             }, status=status.HTTP_201_CREATED)
+#                     # If the day is full, move to the next day
+#                     current_date += timedelta(days=1)
+#             else:
+#                 # For other categories, just return success without scheduling an appointment
+#                 serializer = InquirySerializer(inquiry)
+#                 return Response({
+#                     'message': 'Inquiry submitted successfully. No appointment required for this service.',
+#                     'data': serializer.data
+#                 }, status=status.HTTP_201_CREATED)
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     def _populate_service_data(self, service_data, request):
+#         for field in service_data._meta.fields:
+#             field_name = field.name
+#             if field_name in request.POST:
+#                 setattr(service_data, field_name, request.POST[field_name])
+#             elif field_name in request.FILES:
+#                 setattr(service_data, field_name, request.FILES[field_name])
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -2064,9 +2201,11 @@ class SubmitInquiryView(APIView):
 
     def post(self, request, company_id):
         try:
+            logger.info(f"Starting inquiry submission for company_id: {company_id}, user: {request.user.id}")
             user = request.user
             company = get_object_or_404(Company, id=company_id)
-            
+            logger.info(f"Company found: {company.id} - {company.company_name}")
+
             # Handle num_floors safely
             num_floors_value = request.POST.get('num_floors', None)
             num_floors = None
@@ -2077,6 +2216,7 @@ class SubmitInquiryView(APIView):
                         num_floors = None
                 except ValueError:
                     num_floors = None
+                    logger.warning(f"Invalid num_floors value: {num_floors_value}")
 
             # Create Inquiry
             inquiry_data = {
@@ -2092,27 +2232,34 @@ class SubmitInquiryView(APIView):
             }
             inquiry = Inquiry(**inquiry_data)
             inquiry.save()
+            logger.info(f"Inquiry created: {inquiry.id}, category: {inquiry.category}, sub_service: {inquiry.sub_service}")
 
             # Create service-specific data based on category
             if inquiry.category == "Engineering Consulting":
                 service_data = EngineeringConsultingData(inquiry=inquiry)
                 self._populate_service_data(service_data, request)
                 service_data.save()
+                logger.info(f"EngineeringConsultingData created: {service_data.id}")
             elif inquiry.category == "Building Construction Services":
                 service_data = BuildingConstructionData(inquiry=inquiry)
                 self._populate_service_data(service_data, request)
                 service_data.save()
+                logger.info(f"BuildingConstructionData created: {service_data.id}")
             elif inquiry.category == "Post-Construction Maintenance":
                 service_data = PostConstructionMaintenanceData(inquiry=inquiry)
                 self._populate_service_data(service_data, request)
                 service_data.save()
+                logger.info(f"PostConstructionMaintenanceData created: {service_data.id}")
             elif inquiry.category == "Safety and Training Services":
                 service_data = SafetyTrainingData(inquiry=inquiry)
                 self._populate_service_data(service_data, request)
                 service_data.save()
+                logger.info(f"SafetyTrainingData created: {service_data.id}")
 
             # Schedule appointment only for Engineering Consulting and Building Construction Services
+            appointment_time = None
             if inquiry.category in ["Engineering Consulting", "Building Construction Services"]:
+                logger.info("Scheduling appointment...")
                 # Define time constraints
                 start_hour = 10  # 10:00 AM
                 end_hour = 17   # 5:00 PM
@@ -2126,64 +2273,95 @@ class SubmitInquiryView(APIView):
                         company=company,
                         appointment_date__date=current_date
                     ).count()
+                    logger.info(f"Checking date {current_date}: {daily_appointments} appointments found")
 
                     if daily_appointments < max_slots_per_day:
-                        # Calculate the appointment time
-                        start_time = datetime.datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
+                        # Calculate the appointment time (ensure timezone awareness)
+                        start_time = timezone.make_aware(
+                            datetime.datetime.combine(
+                                current_date,
+                                datetime.datetime.strptime(f'{start_hour}:00', '%H:%M').time()
+                            )
+                        )
                         minutes_offset = daily_appointments * slot_duration
                         appointment_time = start_time + timedelta(minutes=minutes_offset)
 
                         # Ensure the appointment doesn't exceed 5:00 PM
                         end_time = appointment_time + timedelta(minutes=slot_duration)
-                        if end_time.time() <= datetime.strptime('17:00', '%H:%M').time():
+                        end_time_limit = timezone.make_aware(
+                            datetime.datetime.combine(
+                                current_date,
+                                datetime.datetime.strptime('17:00', '%H:%M').time()
+                            )
+                        )
+                        if end_time <= end_time_limit:
                             appointment = Appointment(
                                 inquiry=inquiry,
                                 company=company,
                                 appointment_date=appointment_time
                             )
                             appointment.save()
+                            logger.info(f"Appointment created: {appointment.id} at {appointment_time}")
 
                             inquiry.status = 'Scheduled'
                             inquiry.save()
+                            logger.info(f"Inquiry status updated to Scheduled: {inquiry.id}")
 
                             # Send email
-                            send_mail(
-                                'Appointment Confirmation',
-                                f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
-                                'fybproject6@gmail.com',
-                                [inquiry.email],
-                                fail_silently=True,
-                            )
+                            try:
+                                send_mail(
+                                    'Appointment Confirmation',
+                                    f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
+                                    'fybproject6@gmail.com',
+                                    [inquiry.email],
+                                    fail_silently=False,  # Set to False to catch email errors
+                                )
+                                logger.info(f"Email sent to {inquiry.email}")
+                            except Exception as email_error:
+                                logger.error(f"Failed to send email: {str(email_error)}")
+                                # Continue even if email fails
 
-                            serializer = InquirySerializer(inquiry)
-                            return Response({
-                                'message': 'Inquiry submitted successfully',
-                                'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
-                                'data': serializer.data
-                            }, status=status.HTTP_201_CREATED)
+                            break
                     # If the day is full, move to the next day
                     current_date += timedelta(days=1)
+
+            # Serialize the inquiry for response
+            try:
+                serializer = InquirySerializer(inquiry, context={'request': request})
+                logger.info("Inquiry serialized successfully")
+            except Exception as serialize_error:
+                logger.error(f"Serialization error: {str(serialize_error)}")
+                raise
+
+            # Prepare response
+            response_data = {
+                'message': 'Inquiry submitted successfully',
+                'data': serializer.data
+            }
+            if appointment_time:
+                response_data['appointment'] = appointment_time.strftime('%Y-%m-%d %I:%M %p')
             else:
-                # For other categories, just return success without scheduling an appointment
-                serializer = InquirySerializer(inquiry)
-                return Response({
-                    'message': 'Inquiry submitted successfully. No appointment required for this service.',
-                    'data': serializer.data
-                }, status=status.HTTP_201_CREATED)
+                response_data['message'] = 'Inquiry submitted successfully. No appointment required for this service.'
+
+            logger.info("Inquiry submission completed successfully")
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            logger.error(f"Error in SubmitInquiryView: {str(e)}", exc_info=True)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _populate_service_data(self, service_data, request):
-        for field in service_data._meta.fields:
-            field_name = field.name
-            if field_name in request.POST:
-                setattr(service_data, field_name, request.POST[field_name])
-            elif field_name in request.FILES:
-                setattr(service_data, field_name, request.FILES[field_name])
-
-
-
+        try:
+            for field in service_data._meta.fields:
+                field_name = field.name
+                if field_name in request.POST:
+                    setattr(service_data, field_name, request.POST[field_name])
+                elif field_name in request.FILES:
+                    setattr(service_data, field_name, request.FILES[field_name])
+            logger.info(f"Populated service data for {service_data.__class__.__name__}")
+        except Exception as e:
+            logger.error(f"Error in _populate_service_data: {str(e)}")
+            raise
 
 # ersathi/views.py
 # views.py
@@ -2349,55 +2527,55 @@ class UpdateAppointmentStatusView(APIView):
             logger.error(f"Error in UpdateAppointmentStatusView: {str(e)}")
             return Response({"error": "Failed to update status"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class CheckNewInquiriesView(APIView):
-    permission_classes = [IsAuthenticated]
+# class CheckNewInquiriesView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            company = request.user.company
-            if not company:
-                return Response({"error": "Company not associated with this user"}, status=400)
+#     def get(self, request):
+#         try:
+#             company = request.user.company
+#             if not company:
+#                 return Response({"error": "Company not associated with this user"}, status=400)
             
-            last_check = company.last_inquiry_check or timezone.datetime(1970, 1, 1)
-            new_inquiries = Inquiry.objects.filter(company=company, created_at__gt=last_check).exists()
-            return Response({"has_new_inquiries": new_inquiries}, status=200)
-        except Exception as e:
-            logger.error(f"Error in CheckNewInquiriesView: {str(e)}")
-            return Response({"error": str(e)}, status=500)
+#             last_check = company.last_inquiry_check or timezone.datetime(1970, 1, 1)
+#             new_inquiries = Inquiry.objects.filter(company=company, created_at__gt=last_check).exists()
+#             return Response({"has_new_inquiries": new_inquiries}, status=200)
+#         except Exception as e:
+#             logger.error(f"Error in CheckNewInquiriesView: {str(e)}")
+#             return Response({"error": str(e)}, status=500)
 
-class GetLastInquiryCheckView(APIView):
-    permission_classes = [IsAuthenticated]
+# class GetLastInquiryCheckView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            company = request.user.company
-            last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
-            return Response({"last_inquiry_check": last_check}, status=200)
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+#     def get(self, request):
+#         try:
+#             company = request.user.company
+#             last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
+#             return Response({"last_inquiry_check": last_check}, status=200)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
 
-class MarkInquiriesCheckedView(APIView):
-    permission_classes = [IsAuthenticated]
+# class MarkInquiriesCheckedView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        try:
-            company = request.user.company
-            company.last_inquiry_check = timezone.now()
-            company.save()
-            return Response({"status": "success"}, status=200)
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+#     def post(self, request):
+#         try:
+#             company = request.user.company
+#             company.last_inquiry_check = timezone.now()
+#             company.save()
+#             return Response({"status": "success"}, status=200)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
 
-class GetLastInquiryCheckView(APIView):
-    permission_classes = [IsAuthenticated]
+# class GetLastInquiryCheckView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            company = request.user.company
-            last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
-            return Response({"last_inquiry_check": last_check}, status=200)
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+#     def get(self, request):
+#         try:
+#             company = request.user.company
+#             last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
+#             return Response({"last_inquiry_check": last_check}, status=200)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
 
 
 

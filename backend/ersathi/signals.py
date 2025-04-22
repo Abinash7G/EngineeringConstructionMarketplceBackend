@@ -135,6 +135,181 @@ def send_verification_notification(sender, instance, created, **kwargs):
         except Exception as e:
             logger.error(f"Error creating status update notification for user email: {instance.email}, error: {str(e)}")
 
+
+#inquary
+# @receiver(post_save, sender=Inquiry)
+# def send_inquiry_notification(sender, instance, created, **kwargs):
+#     """Send notification to the company when a new inquiry is created."""
+#     logger.info(f"Inquiry signal triggered for inquiry ID: {instance.id}, company: {instance.company.company_name}, created: {created}")
+    
+#     if created:
+#         try:
+#             company_user = instance.company.customuser
+#             if not company_user:
+#                 logger.error(f"No CustomUser associated with company: {instance.company.company_name} for inquiry ID: {instance.id}")
+#                 return
+
+#             logger.info(f"Sending inquiry notification to company user: {company_user.email}")
+#             notification = Notification.objects.create(
+#                 recipient=company_user,
+#                 message=f"New inquiry #{instance.id} from {instance.full_name} for {instance.category} - {instance.sub_service}.",
+#                 type="inquiry_new"
+#             )
+#             logger.info(f"Inquiry notification created for company: {instance.company.company_name}, user: {company_user.email}, notification ID: {notification.id}")
+#         except Exception as e:
+#             logger.error(f"Error creating inquiry notification for company: {instance.company.company_name}, error: {str(e)}")
+@receiver(post_save, sender=Inquiry)
+def send_inquiry_notification(sender, instance, created, **kwargs):
+    """Send notifications for new inquiries, status updates, and certificate uploads."""
+    logger.info(f"Inquiry signal triggered for inquiry ID: {instance.id}, company: {instance.company.company_name}, created: {created}")
+    
+    if created:
+        try:
+            company_user = instance.company.customuser
+            if not company_user:
+                logger.error(f"No CustomUser associated with company: {instance.company.company_name} for inquiry ID: {instance.id}")
+                return
+
+            logger.info(f"Sending inquiry notification to company user: {company_user.email}")
+            notification = Notification.objects.create(
+                recipient=company_user,
+                message=f"New inquiry #{instance.id} from {instance.full_name} for {instance.category} - {instance.sub_service}.",
+                type="inquiry_new"
+            )
+            logger.info(f"Inquiry notification created for company: {instance.company.company_name}, user: {company_user.email}, notification ID: {notification.id}")
+        except Exception as e:
+            logger.error(f"Error creating inquiry notification for company: {instance.company.company_name}, error: {str(e)}")
+    else:
+        # Notify user when status is updated
+        if 'status' in kwargs.get('update_fields', []):
+            try:
+                user = instance.user
+                logger.info(f"Sending status update notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"Your inquiry #{instance.id} ({instance.category} - {instance.sub_service}) status updated to {instance.status}.",
+                    type="inquiry_status"
+                )
+                logger.info(f"Status update notification created for user: {user.email}, notification ID: {notification.id}")
+            except Exception as e:
+                logger.error(f"Error creating status update notification for user: {instance.user.email}, error: {str(e)}")
+        # Notify user when certificate is uploaded for Safety Training
+        if instance.category == "Safety and Training Services" and instance.certificate and 'certificate' in kwargs.get('update_fields', []):
+            try:
+                user = instance.user
+                logger.info(f"Sending certificate upload notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"The completion certificate for your Safety Training inquiry #{instance.id} has been uploaded.",
+                    type="safety_training_certificate"
+                )
+                logger.info(f"Certificate notification created for user: {user.email}, notification ID: {notification.id}")
+            except Exception as e:
+                logger.error(f"Error creating certificate notification for user: {instance.user.email}, error: {str(e)}")
+
+@receiver(post_save, sender=Comment)
+def send_comment_notification(sender, instance, created, **kwargs):
+    """Send notifications when a comment or company response is added."""
+    if created:
+        try:
+            inquiry = instance.inquiry
+            company_user = inquiry.company.customuser
+            user = inquiry.user
+
+            if instance.created_by == user:
+                # Client commented, notify company
+                if not company_user:
+                    logger.error(f"No CustomUser associated with company: {inquiry.company.company_name} for comment on inquiry ID: {inquiry.id}")
+                    return
+                logger.info(f"Sending comment notification to company user: {company_user.email}")
+                notification = Notification.objects.create(
+                    recipient=company_user,
+                    message=f"New comment on inquiry #{inquiry.id} ({inquiry.category} - {inquiry.sub_service}) by {instance.created_by.username}: {instance.comment_text[:50]}...",
+                    type="comment_client"
+                )
+                logger.info(f"Comment notification created for company: {inquiry.company.company_name}, user: {company_user.email}, notification ID: {notification.id}")
+            elif instance.created_by == company_user:
+                # Company commented, notify client
+                logger.info(f"Sending comment notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"New comment on your inquiry #{inquiry.id} ({inquiry.category} - {inquiry.sub_service}) by {inquiry.company.company_name}: {instance.comment_text[:50]}...",
+                    type="comment_company"
+                )
+                logger.info(f"Comment notification created for user: {user.email}, notification ID: {notification.id}")
+        except Exception as e:
+            logger.error(f"Error creating comment notification for inquiry ID: {instance.inquiry.id}, error: {str(e)}")
+    else:
+        # Notify client when company adds a response
+        if 'company_response' in kwargs.get('update_fields', []) and instance.company_response:
+            try:
+                inquiry = instance.inquiry
+                user = inquiry.user
+                logger.info(f"Sending company response notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"New response to your comment on inquiry #{inquiry.id} ({inquiry.category} - {inquiry.sub_service}) by {inquiry.company.company_name}: {instance.company_response[:50]}...",
+                    type="comment_response"
+                )
+                logger.info(f"Response notification created for user: {user.email}, notification ID: {notification.id}")
+            except Exception as e:
+                logger.error(f"Error creating response notification for inquiry ID: {instance.inquiry.id}, error: {str(e)}")
+
+@receiver(post_save, sender=BuildingConstructionData)
+def send_building_construction_notification(sender, instance, created, **kwargs):
+    """Send notifications for Building Construction progress and document updates."""
+    if not created:  # Only for updates
+        update_fields = kwargs.get('update_fields', [])
+        progress_fields = [
+            'construction_phase', 'progress_percentage', 'permit_status'
+        ]
+        document_fields = [
+            'progress_photos', 'inspection_reports', 'completion_certificate'
+        ]
+
+        try:
+            inquiry = instance.inquiry
+            user = inquiry.user
+
+            # Notify user for progress updates
+            if any(field in update_fields for field in progress_fields):
+                logger.info(f"Sending progress update notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"Progress updated for your Building Construction inquiry #{inquiry.id} ({inquiry.sub_service}). Check details for updates.",
+                    type="building_construction_progress"
+                )
+                logger.info(f"Progress update notification created for user: {user.email}, notification ID: {notification.id}")
+
+            # Notify user for document uploads
+            if 'progress_photos' in update_fields and instance.progress_photos:
+                logger.info(f"Sending progress photos upload notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"New progress photos uploaded for your Building Construction inquiry #{inquiry.id} ({inquiry.sub_service}).",
+                    type="building_construction_photos"
+                )
+                logger.info(f"Photos notification created for user: {user.email}, notification ID: {notification.id}")
+
+            if 'inspection_reports' in update_fields and instance.inspection_reports:
+                logger.info(f"Sending inspection reports upload notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"New inspection reports uploaded for your Building Construction inquiry #{inquiry.id} ({inquiry.sub_service}).",
+                    type="building_construction_reports"
+                )
+                logger.info(f"Reports notification created for user: {user.email}, notification ID: {notification.id}")
+
+            if 'completion_certificate' in update_fields and instance.completion_certificate:
+                logger.info(f"Sending completion certificate upload notification to user: {user.email}")
+                notification = Notification.objects.create(
+                    recipient=user,
+                    message=f"The completion certificate for your Building Construction inquiry #{inquiry.id} ({inquiry.sub_service}) has been uploaded.",
+                    type="building_construction_certificate"
+                )
+                logger.info(f"Certificate notification created for user: {user.email}, notification ID: {notification.id}")
+        except Exception as e:
+            logger.error(f"Error creating Building Construction notification for inquiry ID: {instance.inquiry.id}, error: {str(e)}")
 # @receiver(post_save, sender=Inquiry)
 # def send_inquiry_notification(sender, instance, created, **kwargs):
 #     """Send notification to the company when an inquiry is submitted."""
