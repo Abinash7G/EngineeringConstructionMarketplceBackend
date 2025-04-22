@@ -383,26 +383,6 @@ class SafetyTrainingData(ServiceFormData):
 
 
 
-# # Signal to send WebSocket notification on new inquiry
-# from django.dispatch import receiver
-# from channels.layers import get_channel_layer
-# from asgiref.sync import async_to_sync
-# from django.db.models.signals import post_save
-# @receiver(post_save, sender=Inquiry)
-# def send_inquiry_notification(sender, instance, created, **kwargs):
-#     if created:
-#         company = instance.company
-#         channel_layer = get_channel_layer()
-#         async_to_sync(channel_layer.group_send)(
-#             f'company_{company.id}_inquiries',
-#             {
-#                 'type': 'inquiry_update',
-#                 'message': 'New inquiry received'
-#             }
-#         )
-
-
-
 
 class Appointment(models.Model):
     inquiry = models.OneToOneField(Inquiry, on_delete=models.CASCADE, related_name='appointment')
