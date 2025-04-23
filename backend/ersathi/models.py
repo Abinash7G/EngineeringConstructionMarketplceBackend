@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.forms import ValidationError
 from django.conf import settings
 
-
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 # Define company type choices
 COMPANY_TYPE_CHOICES = [
@@ -36,6 +36,11 @@ class Company(models.Model):
         choices=[("pending", "Pending"), ("verified", "Verified"), ("restricted", "Restricted")],
         default="pending"
     )
+    def average_rating(self):
+        ratings = self.ratings.all()
+        if ratings.exists():
+            return round(sum(rating.rating for rating in ratings) / ratings.count(), 1)
+        return 0.0
     def __str__(self):
         return self.company_name
 
@@ -84,7 +89,18 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
-    
+#rating
+class CompanyRating(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="ratings")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.FloatField(validators=[MinValueValidator(1.0), MaxValueValidator(5.0)])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('company', 'user')  # Ensures a user can only rate a company once
+
+    def __str__(self):
+        return f"{self.user} rated {self.company} - {self.rating}"  
 
 #product model
 from django.db import models
@@ -349,7 +365,14 @@ class BuildingConstructionData(ServiceFormData):
     construction_phase = models.CharField(max_length=50, choices=[
         ('Foundation', 'Foundation'),
         ('Walls', 'Walls'),
-        ('Roof', 'Roof'),
+        ('Finishing', 'Finishing'),
+        ('Excavation', 'Excavation '),
+        ('Columns Casting', 'Columns Casting'),
+        ('Beams Casting', 'Beams Casting'),
+        ('Slab Casting', 'Slab Casting'),
+        ('Roofing', 'Roofing'),
+        ('Electrical & Plumbing', 'Electrical & Plumbing'),
+        ('Plastering', 'Plastering'),
         ('Finishing', 'Finishing'),
     ], blank=True, null=True)
     progress_percentage = models.PositiveIntegerField(blank=True, null=True)

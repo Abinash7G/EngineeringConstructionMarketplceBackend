@@ -7,6 +7,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ersathi import views
 from ersathi.views import (
     #AddCommentView,
+    GetUserRating,
+    RequestSafetyTrainingView,
     RevenueAnalyticsView, 
     AppointmentAnalyticsView,
     CompanyDashboardDataView,
@@ -28,6 +30,8 @@ from ersathi.views import (
     RentVerificationCreateView,
     RentVerificationListView,
     RentVerificationUserUpdateView,
+    SafetyTrainingCompaniesView,
+    SubmitCompanyRating,
    
     SubmitInquiryView,
     SubscribeView,
@@ -120,6 +124,9 @@ urlpatterns = [
     path('reject-company/<int:pk>/', reject_company, name='reject-company'),
     path('api/confirm-email/<str:token>/', ConfirmEmailView.as_view(), name='confirm-email'),
     path('company-registration/<int:pk>/', get_company_details, name='company-details'),
+    #rating
+    path('submit-rating/<int:company_id>/', SubmitCompanyRating.as_view(), name='submit-rating'),
+    path('user-rating/<int:company_id>/', GetUserRating.as_view(), name='user-rating'),
     #dashboard stat
     path('dashboard-stats/', dashboard_stats, name='dashboard_stats'),
     #company info
@@ -226,7 +233,8 @@ urlpatterns = [
     path('api/services/create/', views.create_service, name='create_service'),
     path('api/services/<int:service_id>/', views.update_service, name='update_service'),
     path('api/services/<int:service_id>/delete/', views.delete_service, name='delete_service'),
-    
+    path('api/safety-training-companies/', SafetyTrainingCompaniesView.as_view(), name='safety-training-companies'),
+    path('api/request-safety-training/<int:company_id>/', RequestSafetyTrainingView.as_view(), name='request-safety-training'),
 
     #subscription
     path('api/stripe/subscription-payment-intent/<int:company_id>/', SubscriptionPaymentIntentView.as_view(), name='subscription-payment-intent'),

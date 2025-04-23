@@ -15,7 +15,7 @@ from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 
 
-from .models import Company, Plan 
+from .models import Company, CompanyRating, Plan 
 from .serializers import CommentSerializer, CompanyRegistrationSerializer, OrderSerializer, PlanSerializer, SubscriptionSerializer
 from rest_framework.decorators import api_view
 
@@ -2972,7 +2972,7 @@ def update_construction_progress(request, inquiry_id):
             building_data.construction_start_date = data['construction_start_date']
             changes.append(f"Construction Start Date: {data['construction_start_date']}")
         if 'construction_phase' in data:
-            valid_phases = ['Foundation', 'Walls', 'Roof', 'Finishing']
+            valid_phases = ['Foundation', 'Walls', 'Roofing', 'Finishing', 'Excavation','Columns Casting','Beams Casting','Slab Casting', 'Electrical & Plumbing','Plastering']
             if data['construction_phase'] not in valid_phases:
                 return Response({'error': 'Invalid construction phase'}, status=400)
             changes.append(f"Construction Phase: {data['construction_phase']}")
@@ -4189,8 +4189,7 @@ class AppointmentAnalyticsView(APIView):
         return Response(formatted_data)
 
 
-
-from rest_framework.views import APIView
+# #adminfrom rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
@@ -4199,6 +4198,99 @@ from .models import Subscription
 import logging
 
 logger = logging.getLogger(__name__)
+
+class SubscriptionAnalyticsView(APIView):
+    def get(self, request):
+        try:
+            # Get the period parameter (monthly, quarterly, yearly)
+            period = request.query_params.get('period', 'monthly').lower()
+            if period not in ['monthly', 'quarterly', 'yearly']:
+                return Response({"error": "Invalid period. Use 'monthly', 'quarterly', or 'yearly'."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Determine the number of intervals and interval duration
+            if period == 'monthly':
+                num_intervals = 6  # Last 6 months
+                interval_days = 30
+            elif period == 'quarterly':
+                num_intervals = 4  # Last 4 quarters
+                interval_days = 90
+            else:  # yearly
+                num_intervals = 3  # Last 3 years
+                interval_days = 365
+
+            today = timezone.now()
+            labels = []
+            revenue_by_type = {
+                'trial': [],
+                'monthly': [],
+                'quarterly': [],
+                'yearly': [],
+            }
+            subscriptions_by_type = {
+                'trial': [],
+                'monthly': [],
+                'quarterly': [],
+                'yearly': [],
+            }
+            total_revenue = []
+            total_subscriptions = []
+
+            for i in range(num_intervals - 1, -1, -1):  # Count backwards from the most recent interval
+                if period == 'monthly':
+                    # Monthly: Start of the month
+                    interval_start = (today - timedelta(days=interval_days * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    interval_end = (interval_start + timedelta(days=31)).replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
+                    label = interval_start.strftime("%B")
+                elif period == 'quarterly':
+                    # Quarterly: Start of the quarter
+                    months_back = i * 3
+                    interval_start = (today - timedelta(days=months_back * 30)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    quarter = (interval_start.month - 1) // 3 + 1
+                    interval_start = interval_start.replace(month=(quarter - 1) * 3 + 1)
+                    interval_end = (interval_start + timedelta(days=interval_days)).replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
+                    label = f"Q{quarter} {interval_start.year}"
+                else:  # yearly
+                    # Yearly: Start of the year
+                    interval_start = (today - timedelta(days=interval_days * i)).replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                    interval_end = (interval_start + timedelta(days=interval_days)) - timedelta(seconds=1)
+                    label = interval_start.strftime("%Y")
+
+                # Fetch subscriptions for this interval
+                interval_subscriptions = Subscription.objects.filter(
+                    start_date__gte=interval_start,
+                    start_date__lte=interval_end
+                )
+
+                # Calculate revenue and subscription count by type
+                type_revenue = {'trial': 0, 'monthly': 0, 'quarterly': 0, 'yearly': 0}
+                type_count = {'trial': 0, 'monthly': 0, 'quarterly': 0, 'yearly': 0}
+
+                for sub in interval_subscriptions:
+                    plan_type = sub.plan
+                    type_revenue[plan_type] += float(sub.amount or 0)
+                    type_count[plan_type] += 1
+
+                # Append data for this interval
+                labels.append(label)
+                for plan_type in type_revenue:
+                    revenue_by_type[plan_type].append(type_revenue[plan_type])
+                    subscriptions_by_type[plan_type].append(type_count[plan_type])
+
+                # Total revenue and subscriptions for this interval
+                total_revenue.append(sum(type_revenue.values()))
+                total_subscriptions.append(sum(type_count.values()))
+
+            return Response({
+                "labels": labels,
+                "revenue_by_type": revenue_by_type,
+                "subscriptions_by_type": subscriptions_by_type,
+                "total_revenue": total_revenue,
+                "total_subscriptions": total_subscriptions
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error in SubscriptionAnalyticsView: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class TotalRevenueView(APIView):
     def get(self, request):
         try:
@@ -4207,74 +4299,7 @@ class TotalRevenueView(APIView):
         except Exception as e:
             logger.error(f"Error in TotalRevenueView: {str(e)}")
             return Response({"error": "Failed to calculate total revenue"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class SubscriptionAnalyticsView(APIView):
-    def get(self, request):
-        try:
-            # Get the last 6 months
-            today = timezone.now()
-            months = []
-            revenue = []
-            subscriptions = []
-            for i in range(5, -1, -1):  # Last 6 months, including current
-                month_start = (today - timedelta(days=30 * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                month_end = (month_start + timedelta(days=31)).replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
-                month_name = month_start.strftime("%B")
-                
-                # Calculate total revenue (sum of amount)
-                month_subscriptions = Subscription.objects.filter(start_date__gte=month_start, start_date__lte=month_end)
-                total_revenue = sum(float(sub.amount or 0) for sub in month_subscriptions)
-                
-                # Count subscriptions
-                subscription_count = month_subscriptions.count()
-                
-                months.append(month_name)
-                revenue.append(total_revenue)
-                subscriptions.append(subscription_count)
-            
-            return Response({
-                "labels": months,
-                "revenue": revenue,
-                "subscriptions": subscriptions
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Error in SubscriptionAnalyticsView: {str(e)}")
-            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# from django.http import StreamingHttpResponse
-# import json
-# import time
-# from django.contrib.auth.decorators import login_required
-# from .models import Notification
-# from rest_framework.authentication import TokenAuthentication
-# from rest_framework.exceptions import AuthenticationFailed
-
-# permission_classes = [IsAuthenticated]
-# def sse_notifications(request):
-#     auth = TokenAuthentication()
-#     user_auth_tuple = auth.authenticate(request)
-#     if not user_auth_tuple:
-#         raise AuthenticationFailed('Invalid or missing token')
-#     def event_stream():
-#         last_id = None
-#         while True:
-#             notifications = Notification.objects.filter(
-#                 recipient=request.user, id__gt=last_id if last_id else 0
-#             )
-#             for notification in notifications:
-#                 data = {
-#                     "id": notification.id,
-#                     "message": notification.message,
-#                     "type": notification.type,
-#                     "created_at": notification.created_at.isoformat(),
-#                     "is_read": notification.is_read,
-#                 }
-#                 yield f"data: {json.dumps(data)}\n\n"
-#                 last_id = notification.id
-#             time.sleep(5)  # Poll every 5 seconds
-#     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
-#     response["Cache-Control"] = "no-cache"
-#     return response
+#notification 
 import json
 import time
 import logging
@@ -4376,3 +4401,199 @@ def mark_notification_read(request):
         return Response({"status": "success"})
     except Notification.DoesNotExist:
         return Response({"status": "error", "message": "Notification not found"}, status=404)
+
+
+
+# #rating
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+class CustomUserRateThrottle(UserRateThrottle):
+    rate = '5/hour'  # Limit to 5 rating submissions per hour per user
+
+class GetUserRating(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, company_id):
+        logger.info(f"Fetching rating for company_id: {company_id}, user: {request.user.id}")
+        try:
+            # Ensure the company exists
+            company = Company.objects.get(id=company_id)
+            logger.info(f"Company found: {company.company_name}")
+        except Company.DoesNotExist:
+            logger.error(f"Company with id {company_id} not found")
+            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            rating = CompanyRating.objects.get(company=company, user=request.user)
+            logger.info(f"Rating found: {rating.rating}")
+            return Response({"rating": rating.rating}, status=status.HTTP_200_OK)
+        except CompanyRating.DoesNotExist:
+            logger.info("No rating found for this user and company")
+            return Response({"rating": None}, status=status.HTTP_200_OK)
+
+class SubmitCompanyRating(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [CustomUserRateThrottle]
+
+    def post(self, request, company_id):
+        logger.info(f"Submitting rating for company_id: {company_id}, user: {request.user.id}")
+        try:
+            company = Company.objects.get(id=company_id)
+            logger.info(f"Company found: {company.company_name}")
+        except Company.DoesNotExist:
+            logger.error(f"Company with id {company_id} not found")
+            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        rating_value = request.data.get("rating")
+
+        if not rating_value or not isinstance(rating_value, (int, float)) or rating_value < 1.0 or rating_value > 5.0:
+            logger.error(f"Invalid rating value: {rating_value}")
+            return Response({"error": "Invalid rating. Must be between 1.0 and 5.0"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the user has already rated this company
+        rating, created = CompanyRating.objects.update_or_create(
+            company=company,
+            user=user,
+            defaults={"rating": rating_value}
+        )
+        logger.info(f"Rating {'updated' if not created else 'created'}: {rating.rating}")
+
+        # Recalculate the average rating for the company
+        average_rating = company.average_rating()
+        logger.info(f"Updated average rating: {average_rating}")
+
+        return Response({
+            "message": "Rating submitted successfully",
+            "average_rating": average_rating
+        }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Company, CompanyServices, Service, ServiceCategory
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SafetyTrainingCompaniesView(APIView):
+    def get(self, request):
+        try:
+            # Find the "Safety and Training Services" category
+            safety_category = ServiceCategory.objects.get(name="Safety and Training Services")
+            
+            # Find services under this category
+            safety_services = Service.objects.filter(category=safety_category)
+            
+            # Find companies that offer these services and are approved
+            safety_company_services = CompanyServices.objects.filter(
+                service__in=safety_services,
+                company__is_approved=True
+            ).select_related('company')
+
+            # Extract unique companies
+            companies = list({cs.company for cs in safety_company_services})
+            
+            # Serialize the company data
+            company_data = [
+                {
+                    "id": company.id,
+                    "company_name": company.company_name,
+                    "company_email": company.company_email,
+                    "location": company.location,
+                }
+                for company in companies
+            ]
+
+            return Response(company_data, status=status.HTTP_200_OK)
+        except ServiceCategory.DoesNotExist:
+            logger.error("Safety and Training Services category not found")
+            return Response({"error": "Safety and Training Services category not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error in SafetyTrainingCompaniesView: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils import timezone
+from .models import Company, Service, ServiceCategory
+import logging
+
+logger = logging.getLogger(__name__)
+
+class RequestSafetyTrainingView(APIView):
+    def post(self, request, company_id):
+        try:
+            # Ensure the company exists and is approved
+            company = Company.objects.get(id=company_id, is_approved=True)
+            
+            # Ensure the "Safety and Training Services" category exists
+            safety_category = ServiceCategory.objects.get(name="Safety and Training Services")
+            
+            # Ensure the company offers a service under this category
+            safety_service = CompanyServices.objects.filter(
+                company=company,
+                service__category=safety_category
+            ).first()
+            
+            if not safety_service:
+                return Response(
+                    {"error": "This company does not offer Safety and Training Services"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Extract form data
+            language_preference = request.data.get("language_preference", "")
+            training_date = request.data.get("training_date", "")
+            training_time = request.data.get("training_time", "")
+            training_agreement = request.data.get("training_agreement", "False") == "True"
+
+            # Basic validation
+            if not language_preference or not training_date or not training_time:
+                return Response(
+                    {"error": "Language preference, training date, and time are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Here you can create an inquiry or a training request
+            # For simplicity, we'll assume there's a model to store training requests
+            # You can replace this with your actual logic (e.g., creating an inquiry similar to submit-inquiry/)
+            # Example: Creating a notification or saving a request
+            # For now, we'll just return a success message
+            return Response(
+                {
+                    "message": f"Safety training request for {company.company_name} submitted successfully!",
+                    "details": {
+                        "language_preference": language_preference,
+                        "training_date": training_date,
+                        "training_time": training_time,
+                        "training_agreement": training_agreement,
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Company.DoesNotExist:
+            logger.error(f"Company with id {company_id} not found")
+            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+        except ServiceCategory.DoesNotExist:
+            logger.error("Safety and Training Services category not found")
+            return Response({"error": "Safety and Training Services category not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error in RequestSafetyTrainingView: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
