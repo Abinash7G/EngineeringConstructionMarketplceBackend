@@ -4597,3 +4597,22 @@ class RequestSafetyTrainingView(APIView):
         except Exception as e:
             logger.error(f"Error in RequestSafetyTrainingView: {str(e)}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
+# api/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .models import Company
+from .serializers import FeaturedCompanySerializer
+
+class FeaturedCompaniesView(APIView):
+    def get(self, request):
+        # Fetch approved companies, ordered by average rating (descending), limit to top 3
+        companies = Company.objects.filter(
+            is_approved=True, is_rejected=False
+        ).order_by('-ratings__rating')[:3]  # Assuming ratings are related via a ForeignKey
+        serializer = FeaturedCompanySerializer(companies, many=True)
+        return Response(serializer.data)

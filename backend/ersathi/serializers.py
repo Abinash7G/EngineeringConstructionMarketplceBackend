@@ -551,10 +551,6 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 
-
-
-
-
 #aggrement
 from rest_framework import serializers
 from .models import Agreement
@@ -600,3 +596,33 @@ class PlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = ['name', 'price', 'duration', 'days']
+
+
+
+
+# api/serializers.py
+from rest_framework import serializers
+from .models import Company, CompanyServices
+
+class FeaturedCompanySerializer(serializers.ModelSerializer):
+    description = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    service_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Company
+        fields = ['company_name', 'description', 'average_rating', 'service_count', 'company_type']
+
+    def get_description(self, obj):
+        # Generate a description based on services provided
+        services = obj.company_services.filter(status="Available").select_related('service')
+        if services.exists():
+            service_names = [cs.service.name for cs in services]
+            return f"Specializing in {', '.join(service_names[:2])}.{'..' if len(service_names) > 2 else ''}"
+        return "Providing a range of construction services."
+
+    def get_average_rating(self, obj):
+        return obj.average_rating()
+
+    def get_service_count(self, obj):
+        return obj.company_services.filter(status="Available").count()

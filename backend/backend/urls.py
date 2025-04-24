@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ersathi import views
 from ersathi.views import (
     #AddCommentView,
+    FeaturedCompaniesView,
     GetUserRating,
     RequestSafetyTrainingView,
     RevenueAnalyticsView, 
@@ -249,6 +250,8 @@ urlpatterns = [
     path('api/total-revenue/', views.TotalRevenueView.as_view(), name='total-revenue'),
     path("api/sse/notifications/", views.sse_notifications, name="sse_notifications"),
     path("api/notifications/mark_read/", views.mark_notification_read, name="mark_notification_read"),
+    #homepage
+    path('api/featured-companies/', FeaturedCompaniesView.as_view(), name='featured-companies'),
 ]
 # Serve media files during development 
 if settings.DEBUG:  
