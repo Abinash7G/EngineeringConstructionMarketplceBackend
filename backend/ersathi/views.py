@@ -827,8 +827,7 @@ from rest_framework.response import Response
 from .models import Product
 from django.shortcuts import get_object_or_404
 class Test(APIView):
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]  
     def get(self, request):
         company_id = request.query_params.get('company_id')
         if not company_id:
@@ -855,7 +854,6 @@ class Test(APIView):
             return Response({"error": "Invalid company ID format."}, status=400)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
     def post(self, request):
         user = request.user
 
