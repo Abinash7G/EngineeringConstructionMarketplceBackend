@@ -5,8 +5,10 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ersathi import views
+
 from ersathi.views import (
     #AddCommentView,
+    CompanyServiceCategoryListView,
     FeaturedCompaniesView,
     GetUserRating,
     RequestSafetyTrainingView,
@@ -97,11 +99,21 @@ from ersathi.views import (
     get_wishlist,
     add_to_wishlist,
     remove_from_wishlist,
-   
-  
-   
+#     CreateChatChannel,
+#     ChatMessageList,
+#    ChatChannelList,
+#    UserInfoView,
+#    DeactivateChatChannel,
+#    SendMessage,
+#    AdminList,
+    AgoraTokenView,
+    ChatListView,
+    MessageView,
+    
    
 )
+
+
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -252,7 +264,23 @@ urlpatterns = [
     path("api/notifications/mark_read/", views.mark_notification_read, name="mark_notification_read"),
     #homepage
     path('api/featured-companies/', FeaturedCompaniesView.as_view(), name='featured-companies'),
-]
+    #chat`
+    # path('api/chat/create-channel/', CreateChatChannel.as_view(), name='create-chat-channel'),
+    # path('api/chat/messages/<str:channel_id>/', ChatMessageList.as_view(), name='chat-messages'),
+    # path('api/chat/channels/', ChatChannelList.as_view(), name='chat-channels'),
+    # path('api/user-info/', UserInfoView.as_view(), name='user-info'),
+    # path('api/chat/send-message/', SendMessage.as_view(), name='send-message'),
+    # path('api/chat/deactivate-channel/', DeactivateChatChannel.as_view(), name='deactivate-channel'),
+    # #admin
+    # path('api/admins/', AdminList.as_view(), name='admin-list'),
+    path('chats/', ChatListView.as_view()),
+    path('chats/<int:chat_id>/messages/', MessageView.as_view()),
+    path('agora-token/', AgoraTokenView.as_view()),
+    path('company-service-category-list/', CompanyServiceCategoryListView.as_view(), name='company-service-category-list'),
+
+
+    
+]  
 # Serve media files during development 
 if settings.DEBUG:  
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

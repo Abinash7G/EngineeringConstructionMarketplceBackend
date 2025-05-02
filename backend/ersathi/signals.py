@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from .models import (
     Inquiry, EngineeringConsultingData, BuildingConstructionData,
     PostConstructionMaintenanceData, SafetyTrainingData, Order,
-    Company, RentVerification, Subscription, Notification, CustomUser, Appointment, Agreement, Comment
+    Company, RentVerification, Subscription, Notification, CustomUser, Appointment, Agreement, Comment, OrderItem
 )
 # signals.py
 from django.dispatch import Signal
@@ -42,7 +42,16 @@ def send_order_notification(sender, instance, created, **kwargs):
                 type="order_renting_status"
             )
 
-
+@receiver(post_save, sender=OrderItem)
+def send_orderItem_notification(sender, instance, created, **kwargs):
+    """Send notifications for order creation (to companies) and status updates (to client only)."""
+    if created:
+        # Notify company users when order is created
+        Notification.objects.create(
+            recipient=instance.product.company.customuser,
+            message=f"New order #{instance.id} placed for your products.",
+            type="order_new"
+            )
 
 
 

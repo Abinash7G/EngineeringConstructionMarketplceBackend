@@ -16,7 +16,7 @@ from django.utils.crypto import get_random_string
 
 
 from .models import Company, CompanyRating, Plan 
-from .serializers import CommentSerializer, CompanyRegistrationSerializer, OrderSerializer, PlanSerializer, SubscriptionSerializer
+from .serializers import CommentSerializer, CompanyRegistrationSerializer, CompanySerializer, OrderSerializer, PlanSerializer, SubscriptionSerializer
 from rest_framework.decorators import api_view
 
 from .models import Service  # Import your Service model
@@ -661,21 +661,33 @@ from rest_framework.decorators import api_view, permission_classes
 from django.http import JsonResponse
 from .models import Company  
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_company_details(request, pk):
+#     try:
+#         company = Company.objects.get(id=pk)  # Fetch company by ID
+#         return JsonResponse({
+#             'company_name': company.company_name,
+#             'company_email': company.company_email,
+#             'location': company.location,
+            
+
+#         }, status=200)
+#     except Company.DoesNotExist:
+#         return JsonResponse({'error': 'Company not found'}, status=404)
+#     except Exception as e:
+#         return JsonResponse({'error': str(e)}, status=500)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_company_details(request, pk):
     try:
-        company = Company.objects.get(id=pk)  # Fetch company by ID
-        return JsonResponse({
-            'company_name': company.company_name,
-            'company_email': company.company_email,
-            'location': company.location,
-        }, status=200)
+        company = Company.objects.get(id=pk)
+        serializer = CompanySerializer(company)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Company.DoesNotExist:
-        return JsonResponse({'error': 'Company not found'}, status=404)
+        return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ServiceList(APIView):
     def get(self, request):
@@ -705,7 +717,8 @@ def get_user_profile(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "phone_number": user.phone_number,  # Ensure phone_number is included
-            "address": user.profile.address if hasattr(user, "profile") else "",
+            "address": user.address 
+            # if hasattr(user, "profile") else "",
         })
 
     # PUT Request: Update the user's profile data
@@ -714,9 +727,10 @@ def get_user_profile(request):
         user.first_name = data.get("first_name", user.first_name)
         user.last_name = data.get("last_name", user.last_name)
         user.phone_number = data.get("phone_number", user.phone_number)
-        if hasattr(user, "profile"):
-            user.profile.address = data.get("address", user.profile.address)
-            user.profile.save()
+        user.address = data.get("address", user.address)
+        # if hasattr(user, "profile"):
+        #     user.address = data.get("address", user.address)
+        #     user.profile.save()
         user.save()
 
         return Response({"message": "Profile updated successfully!"})
@@ -4106,85 +4120,107 @@ class RevenueAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_id = request.user.company_id
+        # company_id = request.user.company_id
+        company_id = request.user.company.id if request.user.company else None
+        if not company_id:
+            return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
         time_range = request.query_params.get('time_range', '6m')  # Default to 6 months
 
         # Calculate the start date based on time_range
         if time_range == '3m':
-            start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+            # start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+            start_date = timezone.now() - timedelta(days=90)
         elif time_range == '12m':
-            start_date = datetime.datetime.now() - datetime.timedelta(days=365)
+            start_date = timezone.now() - timedelta(days=365)
+            # start_date = datetime.datetime.now() - datetime.timedelta(days=365)
         elif time_range == 'all':
             start_date = None  # No filter, fetch all data
         else:  # Default to 6 months
-            start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+            # start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+            start_date = timezone.now() - timedelta(days=180)
 
         # Fetch revenue data
-        query = PaymentDistribution.objects.filter(company_id=company_id)
-        if start_date:
-            query = query.filter(created_at__gte=start_date)
+        try:
+            query = PaymentDistribution.objects.filter(company_id=company_id)
+            if start_date:
+                query = query.filter(created_at__gte=start_date)
 
-        revenue_data = (
-            query
-            .annotate(month=TruncMonth('created_at'))
-            .values('month')
-            .annotate(total_revenue=Sum('amount'))
-            .order_by('month')
-        )
+            revenue_data = (
+                query
+                .annotate(month=TruncMonth('created_at'))
+                .values('month')
+                .annotate(total_revenue=Sum('amount'))
+                .order_by('month')
+            )
 
-        revenue_over_time = [
-            {
-                'month': entry['month'].strftime('%Y-%m'),
-                'total_revenue': float(entry['total_revenue']),
-            }
-            for entry in revenue_data
-        ]
+            revenue_over_time = [
+                {
+                    'month': entry['month'].strftime('%Y-%m'),
+                    'total_revenue': float(entry['total_revenue']),
+                }
+                for entry in revenue_data
+            ]
 
-        return Response(revenue_over_time)
+            return Response(revenue_over_time, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching revenue analytics: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AppointmentAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_id = request.user.company_id
+        # company_id = request.user.company_id
+        company_id = request.user.company.id if request.user.company else None
+        if not company_id:
+            return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
+
         time_range = request.query_params.get('time_range', '6m')
 
         # Calculate the start date based on time_range
         if time_range == '3m':
-            start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+           # start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+            start_date = timezone.now() - timedelta(days=90)
         elif time_range == '12m':
-            start_date = datetime.datetime.now() - datetime.timedelta(days=365)
+            # start_date = datetime.datetime.now() - datetime.timedelta(days=365)
+            start_date = timezone.now() - timedelta(days=365)
         elif time_range == 'all':
             start_date = None
         else:
-            start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+            # start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+            start_date = timezone.now() - timedelta(days=180)
 
         # Fetch appointment data
-        query = Appointment.objects.filter(company_id=company_id)
-        if start_date:
-            query = query.filter(created_at__gte=start_date)
+        try:
+            query = Appointment.objects.filter(company_id=company_id)
+            if start_date:
+                query = query.filter(created_at__gte=start_date)
 
-        appointment_data = (
-            query
-            .annotate(month=TruncMonth('created_at'))
-            .values('month', 'status')
-            .annotate(count=Count('id'))
-            .order_by('month', 'status')
-        )
+            appointment_data = (
+                query
+                .annotate(month=TruncMonth('created_at'))
+                .values('month', 'status')
+                .annotate(count=Count('id'))
+                .order_by('month', 'status')
+            )
 
-        appointment_over_time = {}
-        for entry in appointment_data:
-            month = entry['month'].strftime('%Y-%m')
-            if month not in appointment_over_time:
-                appointment_over_time[month] = {'Pending': 0, 'Confirmed': 0, 'No-Show': 0, 'Completed': 0}
-            appointment_over_time[month][entry['status']] = entry['count']
+            appointment_over_time = {}
+            for entry in appointment_data:
+                month = entry['month'].strftime('%Y-%m')
+                if month not in appointment_over_time:
+                    appointment_over_time[month] = {'Pending': 0, 'Confirmed': 0, 'No-Show': 0, 'Completed': 0}
+                appointment_over_time[month][entry['status']] = entry['count']
 
-        formatted_data = [
-            {'month': month, **statuses}
-            for month, statuses in appointment_over_time.items()
-        ]
+            formatted_data = [
+                {'month': month, **statuses}
+                for month, statuses in appointment_over_time.items()
+            ]
 
-        return Response(formatted_data)
+            return Response(formatted_data)
+
+        except Exception as e:
+            logger.error(f"Error fetching appointment analytics: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # #adminfrom rest_framework.views import APIView
@@ -4614,3 +4650,516 @@ class FeaturedCompaniesView(APIView):
         ).order_by('-ratings__rating')[:3]  # Assuming ratings are related via a ForeignKey
         serializer = FeaturedCompanySerializer(companies, many=True)
         return Response(serializer.data)
+
+
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework import status
+# import uuid
+# from .models import ChatChannel, Company, CustomUser
+# from .utils import can_user_chat_with_company, can_user_chat_with_admin, can_company_chat_with_admin
+# from .agora_utils import generate_agora_rtm_token, AGORA_APP_ID
+# import logging
+# logger = logging.getLogger(__name__)
+# # views.py
+# class CreateChatChannel(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         user = request.user
+#         channel_type = request.data.get('channel_type')
+#         company_id = request.data.get('company_id')
+#         admin_id = request.data.get('admin_id')
+#         channel_id = str(uuid.uuid4())
+
+#         try:
+#             if channel_type == 'user_company' and company_id:
+#                 company = Company.objects.get(id=company_id)
+#                 has_permission = can_user_chat_with_company(user, company)
+#                 if not has_permission:
+#                     logger.warning(f"User {user.id} denied chat with company {company_id}: No inquiry or order.")
+#                     return Response({"error": "User cannot chat with this company."}, status=status.HTTP_403_FORBIDDEN)
+                
+#                 # Check for existing active channel
+#                 existing_channel = ChatChannel.objects.filter(
+#                     channel_type='user_company', user=user, company=company, is_active=True
+#                 ).first()
+#                 if existing_channel:
+#                     token = generate_agora_rtm_token(str(user.id))
+#                     return Response({
+#                         "channel_id": existing_channel.channel_id,
+#                         "token": token,
+#                         "app_id": AGORA_APP_ID
+#                     }, status=status.HTTP_200_OK)
+
+#                 ChatChannel.objects.create(
+#                     channel_id=channel_id,
+#                     channel_type='user_company',
+#                     user=user,
+#                     company=company
+#                 )
+
+#             elif channel_type == 'user_admin' and admin_id:
+#                 admin = CustomUser.objects.get(id=admin_id, is_superuser=True)
+#                 if not can_user_chat_with_admin(user):
+#                     return Response({"error": "User cannot chat with admin."}, status=status.HTTP_403_FORBIDDEN)
+                
+#                 # Check for existing active channel
+#                 existing_channel = ChatChannel.objects.filter(
+#                     channel_type='user_admin', user=user, admin=admin, is_active=True
+#                 ).first()
+#                 if existing_channel:
+#                     token = generate_agora_rtm_token(str(user.id))
+#                     return Response({
+#                         "channel_id": existing_channel.channel_id,
+#                         "token": token,
+#                         "app_id": AGORA_APP_ID
+#                     }, status=status.HTTP_200_OK)
+
+#                 ChatChannel.objects.create(
+#                     channel_id=channel_id,
+#                     channel_type='user_admin',
+#                     user=user,
+#                     admin=admin
+#                 )
+
+#             elif channel_type == 'company_admin' and company_id:
+#                 company = Company.objects.get(id=company_id)
+#                 if not (user.company and user.company == company):
+#                     return Response({"error": "User does not belong to this company."}, status=status.HTTP_403_FORBIDDEN)
+#                 if not can_company_chat_with_admin(company):
+#                     return Response({"error": "Company cannot chat with admin."}, status=status.HTTP_403_FORBIDDEN)
+                
+#                 admin = CustomUser.objects.get(id=admin_id, is_superuser=True)
+#                 # Check for existing active channel
+#                 existing_channel = ChatChannel.objects.filter(
+#                     channel_type='company_admin', company=company, admin=admin, is_active=True
+#                 ).first()
+#                 if existing_channel:
+#                     token = generate_agora_rtm_token(str(user.id))
+#                     return Response({
+#                         "channel_id": existing_channel.channel_id,
+#                         "token": token,
+#                         "app_id": AGORA_APP_ID
+#                     }, status=status.HTTP_200_OK)
+
+#                 ChatChannel.objects.create(
+#                     channel_id=channel_id,
+#                     channel_type='company_admin',
+#                     company=company,
+#                     admin=admin
+#                 )
+
+#             else:
+#                 return Response({"error": "Invalid channel type or missing parameters."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             token = generate_agora_rtm_token(str(user.id))
+#             logger.info(f"Generated Agora RTM token for user {user.id}: {token}")
+
+#             return Response({
+#                 "channel_id": channel_id,
+#                 "token": token,
+#                 "app_id": AGORA_APP_ID
+#             }, status=status.HTTP_201_CREATED)
+
+#         except Company.DoesNotExist:
+#             logger.error(f"Company {company_id} not found.")
+#             return Response({"error": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+#         except CustomUser.DoesNotExist:
+#             logger.error(f"Admin {admin_id} not found or not a superuser.")
+#             return Response({"error": "Admin not found or not a superuser."}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             logger.error(f"Error creating chat channel: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# class GetChatChannels(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user_id = request.query_params.get('user_id')
+#         user_type = request.query_params.get('user_type')
+
+#         if not user_id or not user_type:
+#             return Response({"error": "user_id and user_type are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             if user_type == 'user':
+#                 user = CustomUser.objects.get(username=user_id)
+#                 channels = ChatChannel.objects.filter(user=user, is_active=True)
+#             elif user_type == 'company':
+#                 company = Company.objects.get(company_name=user_id)
+#                 if company.company_type == 'supplier':
+#                     channels = ChatChannel.objects.filter(company=company, is_active=True, company__company_type='supplier')
+#                 else:
+#                     channels = ChatChannel.objects.filter(company=company, is_active=True)
+#             elif user_type == 'admin':
+#                 admin = CustomUser.objects.get(username=user_id, is_superuser=True)
+#                 channels = ChatChannel.objects.filter(admin=admin, is_active=True)
+#             else:
+#                 return Response({"error": "Invalid user_type"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Serialize channels (unchanged)
+#             channel_list = [
+#                 {
+#                     "channel_id": channel.channel_id,
+#                     "channel_type": channel.channel_type,
+#                     "user": channel.user.id if channel.user else None,
+#                     "company": {"id": channel.company.id, "company_name": channel.company.company_name} if channel.company else None,
+#                     "admin": channel.admin.id if channel.admin else None,
+#                     "created_at": channel.created_at,
+#                     "is_active": channel.is_active
+#                 }
+#                 for channel in channels
+#             ]
+#             return Response(channel_list, status=status.HTTP_200_OK)
+
+#         except CustomUser.DoesNotExist:
+#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Company.DoesNotExist:
+#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             logger.error(f"Error fetching chat channels: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from .models import ChatMessage
+# from .serializers import ChatMessageSerializer
+
+# class ChatMessageList(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, channel_id):
+#         messages = ChatMessage.objects.filter(channel__channel_id=channel_id)
+#         serializer = ChatMessageSerializer(messages, many=True)
+#         return Response(serializer.data)
+
+# # Add to existing imports
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from .models import ChatChannel
+# from .serializers import ChatChannelSerializer
+
+# class ChatChannelList(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user_id = request.user.id
+#         user_type = 'admin' if request.user.is_superuser else 'company' if request.user.company else 'user'
+        
+#         if user_type == 'admin':
+#             channels = ChatChannel.objects.filter(admin=user_id)
+#         elif user_type == 'company':
+#             channels = ChatChannel.objects.filter(company=request.user.company)
+#         else:
+#             channels = ChatChannel.objects.filter(user=user_id)
+
+#         serializer = ChatChannelSerializer(channels, many=True)
+#         return Response(serializer.data)
+
+# # Add to existing imports
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+
+# class UserInfoView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         return Response({
+#             'username': user.username,
+#             'is_superuser': user.is_superuser,
+#             'company': user.company.id if user.company else None,
+#         })
+
+
+# # views.py
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework import status
+# from .models import ChatChannel, ChatMessage
+# from .serializers import ChatMessageSerializer
+# import logging
+
+# logger = logging.getLogger(__name__)
+
+# class SendMessage(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         user = request.user
+#         channel_id = request.data.get('channel_id')
+#         message = request.data.get('message')
+
+#         if not channel_id or not message:
+#             return Response({"error": "channel_id and message are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             channel = ChatChannel.objects.get(channel_id=channel_id, is_active=True)
+            
+#             # Verify user has access to the channel
+#             if (
+#                 (channel.user and channel.user != user) and
+#                 (channel.company and (not user.company or user.company != channel.company)) and
+#                 (channel.admin and not user.is_superuser)
+#             ):
+#                 return Response({"error": "User does not have access to this channel"}, status=status.HTTP_403_FORBIDDEN)
+
+#             # Save the message
+#             chat_message = ChatMessage.objects.create(
+#                 channel=channel,
+#                 sender=user,
+#                 message=message
+#             )
+
+#             serializer = ChatMessageSerializer(chat_message)
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+#         except ChatChannel.DoesNotExist:
+#             logger.error(f"Channel {channel_id} not found.")
+#             return Response({"error": "Channel not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             logger.error(f"Error sending message: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# class DeactivateChatChannel(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         channel_id = request.data.get('channel_id')
+
+#         if not channel_id:
+#             return Response({"error": "channel_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             channel = ChatChannel.objects.get(channel_id=channel_id, is_active=True)
+            
+#             # Only channel participants or admins can deactivate
+#             if (
+#                 (channel.user and channel.user != request.user) and
+#                 (channel.company and (not request.user.company or request.user.company != channel.company)) and
+#                 (channel.admin and not request.user.is_superuser) and
+#                 not request.user.is_superuser
+#             ):
+#                 return Response({"error": "User does not have permission to deactivate this channel"}, status=status.HTTP_403_FORBIDDEN)
+
+#             channel.is_active = False
+#             channel.save()
+#             return Response({"message": "Channel deactivated successfully"}, status=status.HTTP_200_OK)
+
+#         except ChatChannel.DoesNotExist:
+#             logger.error(f"Channel {channel_id} not found.")
+#             return Response({"error": "Channel not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             logger.error(f"Error deactivating channel: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# # views.py
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from .models import CustomUser
+
+# class AdminList(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         admins = CustomUser.objects.filter(is_superuser=True).values('id', 'username')
+#         return Response(list(admins))
+
+
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from .models import Chat, Message
+from .serializers import ChatSerializer, MessageSerializer
+from agora_token_builder import RtmTokenBuilder
+import time
+
+class ChatListView(APIView):
+    def get(self, request):
+        user = request.user
+        chats = Chat.objects.none()
+        
+        if user.is_superuser:
+            chats = Chat.objects.all()
+        elif user.company:
+            chats = Chat.objects.filter(
+                Q(company=user.company) | Q(platform_admin_involved=True)
+            )
+        else:
+            chats = Chat.objects.filter(
+                Q(user=user) | Q(platform_admin_involved=True)
+            )
+            
+        serializer = ChatSerializer(chats, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class MessageView(APIView):
+    def get(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id)
+        self.check_permissions(request, chat)
+        
+        messages = chat.messages.all().order_by('timestamp')
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id)
+        self.check_permissions(request, chat)
+        
+        serializer = MessageSerializer(data=request.data)
+        if serializer.is_valid():
+            message = serializer.save(chat=chat)
+            self.set_sender(request, message)
+            return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def check_permissions(self, request, chat):
+        user = request.user
+        if not (user.is_superuser or 
+               (user.company and chat.company == user.company) or 
+               (not user.company and chat.user == user)):
+            self.permission_denied(request)
+
+    def set_sender(self, request, message):
+        if request.user.is_superuser:
+            message.sender_user = request.user
+        elif request.user.company:
+            message.sender_company = request.user.company
+        else:
+            message.sender_user = request.user
+        message.save()
+
+class AgoraTokenView(APIView):
+    def get(self, request):
+        user_id = str(request.user.id)
+        expiration_time = 3600
+        current_time = int(time.time())
+        privilege_expired_ts = current_time + expiration_time
+        
+        token = RtmTokenBuilder.buildToken(
+            settings.AGORA_APP_ID,
+            settings.AGORA_APP_CERTIFICATE,
+            user_id,
+            privilege_expired_ts
+        )
+        return Response({
+            'token': token,
+            'app_id': settings.AGORA_APP_ID,
+            'user_id': user_id
+        })
+
+
+
+
+
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .models import Company, CompanyServices, Service, ServiceCategory
+# from .serializers import CompanySerializer  # Assuming you have a serializer for Company
+
+# class CompanyServiceCategoryListView(APIView):
+#     def get(self, request):
+#         # Get all approved companies
+#         companies = Company.objects.filter(is_approved=True)
+#         data = []
+        
+#         for company in companies:
+#             # Get all services provided by the company
+#             company_services = CompanyServices.objects.filter(company=company)
+#             service_categories = []
+            
+#             # Collect unique service categories for the company
+#             for company_service in company_services:
+#                 category = company_service.service.category
+#                 if category not in service_categories:
+#                     service_categories.append({
+#                         "category_id": category.id,
+#                         "category_name": category.name
+#                     })
+            
+#             # Append company data with its service categories
+#             company_data = {
+#                 "id": company.id,
+#                 "company_name": company.company_name,
+#                 "company_email": company.company_email,
+#                 "company_type": company.company_type,
+#                 "location": company.location,
+#                 "is_approved": company.is_approved,
+#                 "created_at": company.created_at,
+#                 "updated_at": company.updated_at,
+#                 "service_categories": service_categories
+#             }
+#             data.append(company_data)
+        
+#         return Response(data, status=status.HTTP_200_OK)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Company, CompanyServices, Service, ServiceCategory, CompanyRating
+from django.db.models import Avg, Count
+
+class CompanyServiceCategoryListView(APIView):
+    def get(self, request):
+        # Get all approved companies
+        companies = Company.objects.filter(is_approved=True)
+        data = []
+        
+        for company in companies:
+            # Get all services provided by the company
+            company_services = CompanyServices.objects.filter(company=company)
+            # Group services by category
+            category_dict = {}
+            
+            for company_service in company_services:
+                category = company_service.service.category
+                if category.id not in category_dict:
+                    category_dict[category.id] = {
+                        "category_id": category.id,
+                        "category_name": category.name,
+                        "services": []
+                    }
+                # Add service details under the category
+                category_dict[category.id]["services"].append({
+                    "service_id": company_service.service.id,
+                    "service_name": company_service.service.name,
+                    "price": str(company_service.price),
+                    "status": company_service.status
+                })
+            
+            # Convert category dictionary to list
+            service_categories = list(category_dict.values())
+            
+            # Get rating data for the company
+            rating_data = CompanyRating.objects.filter(company=company).aggregate(
+                average_rating=Avg('rating'),
+                rating_count=Count('rating')
+            )
+            average_rating = rating_data['average_rating'] or 0.0  # Default to 0.0 if no ratings
+            rating_count = rating_data['rating_count']  # Number of ratings
+            
+            # Append company data with its service categories, services, and rating info
+            company_data = {
+                "id": company.id,
+                "company_name": company.company_name,
+                "company_email": company.company_email,
+                "company_type": company.company_type,
+                "location": company.location,
+                "is_approved": company.is_approved,
+                "created_at": company.created_at,
+                "updated_at": company.updated_at,
+                "service_categories": service_categories,
+                "average_rating": round(average_rating, 2),  # Round to 2 decimal places
+                "rating_count": rating_count
+            }
+            data.append(company_data)
+        
+        return Response(data, status=status.HTTP_200_OK)
