@@ -11,6 +11,8 @@ from ersathi.views import (
     CompanyServiceCategoryListView,
     FeaturedCompaniesView,
     GetUserRating,
+    PaymentCreateView,
+    PaymentListView,
     RequestSafetyTrainingView,
     RevenueAnalyticsView, 
     AppointmentAnalyticsView,
@@ -47,6 +49,8 @@ from ersathi.views import (
     UpdateInquiryStatusView,
     UpdateOrderPaymentView,
     UpdateOrderStatusView,
+    clear_cart,
+    clear_wishlist,
     
 
     company_info,
@@ -67,7 +71,9 @@ from ersathi.views import (
     get_company_services_basic,
     get_company_services_by_id,
     get_company_team_members,
+    get_product_by_id,
     get_user_profile,
+    permanent_delete_account,
     project_list_create,
     send_training_email,
    
@@ -109,6 +115,7 @@ from ersathi.views import (
     AgoraTokenView,
     ChatListView,
     MessageView,
+    verify_password,
     
    
 )
@@ -163,6 +170,8 @@ urlpatterns = [
     path('api/company-inquiries/', CompanyInquiriesView.as_view(), name='company-inquiries'),
     path('api/update-inquiry-status/<int:inquiry_id>/', UpdateInquiryStatusView.as_view(), name='update-inquiry-status'),
     path('company-appointments/', CompanyAppointmentsView.as_view(), name='company-appointments'),
+    path('api/payments/', PaymentCreateView.as_view(), name='payment-create'),
+    path('api/payments/', PaymentListView.as_view(), name='payment-list'),
     # path('mark-inquiries-checked/', MarkInquiriesCheckedView.as_view(), name='mark-inquiries-checked'),
     # path('check-new-company-inquiries/', CheckNewInquiriesView.as_view(), name='check-new-inquiries'),
     # path('api/get-last-inquiry-check/', GetLastInquiryCheckView.as_view(), name='get-last-inquiry-check'),
@@ -193,6 +202,7 @@ urlpatterns = [
     path('api/products/', get_all_products, name='get_all_products'),
     path('api/products/<str:category>/', get_products_by_category, name='get_products_by_category'),
     path('api/company-products/', get_company_products, name='get_company_products'),
+    path('api/products-item/<int:id>/', get_product_by_id, name='get_product_by_id'),
 
     # Test
     path('api/test/', Test.as_view(), name='create_Test'),
@@ -205,6 +215,8 @@ urlpatterns = [
     path('api/wishlist/', get_wishlist, name='get_wishlist'),
     path('api/wishlist/add/', add_to_wishlist, name='add_to_wishlist'),
     path('api/wishlist/remove/<int:product_id>/', remove_from_wishlist, name='remove_from_wishlist'),
+    path('api/cart/clear/', clear_cart, name='clear_cart'),
+    path('api/wishlist/clear/', clear_wishlist, name='clear_wishlist'),
     #order
    
     path('api/stripe/create-payment-intent/', CreatePaymentIntentView.as_view(), name='create-payment-intent'),
@@ -276,7 +288,11 @@ urlpatterns = [
     path('chats/', ChatListView.as_view()),
     path('chats/<int:chat_id>/messages/', MessageView.as_view()),
     path('agora-token/', AgoraTokenView.as_view()),
+    #forfilter
     path('company-service-category-list/', CompanyServiceCategoryListView.as_view(), name='company-service-category-list'),
+    #delete
+    path('api/permanent-delete-account/', permanent_delete_account, name='permanent_delete_account'),
+    path('api/verify-password/', verify_password, name='verify_password'),
 
 
     

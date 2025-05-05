@@ -684,3 +684,16 @@ class MessageSerializer(serializers.ModelSerializer):
         if obj.sender_user:
             return 'admin' if obj.sender_user.is_superuser else 'user'
         return 'company'
+    
+
+from rest_framework import serializers
+from .models import Payment
+
+class PaymentSerializer(serializers.ModelSerializer):
+    inquiry_id = serializers.IntegerField(write_only=True)
+    payment_method = serializers.CharField(required=False)
+
+    class Meta:
+        model = Payment
+        fields = ['id', 'inquiry_id', 'amount', 'payment_method', 'purpose', 'created_at']
+        read_only_fields = ['id', 'created_at']

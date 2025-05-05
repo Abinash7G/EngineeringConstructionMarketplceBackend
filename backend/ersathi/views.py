@@ -786,6 +786,24 @@ def get_company_products(request):
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Product
+from .serializers import ProductSerializer
+
+@api_view(['GET'])
+def get_product_by_id(request, id):
+    try:
+        product = Product.objects.get(pk=id)
+        serializer = ProductSerializer(product, context={'request': request})
+        return Response(serializer.data)
+    except Product.DoesNotExist:
+        return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 #update admindashboard user count and company count
 # In your Django backend (e.g., in views.py or a dedicated API view)
 
@@ -1128,7 +1146,7 @@ def remove_from_cart(request, product_id):
 def get_wishlist(request):
     user = request.user
     wishlist_items = Wishlist.objects.filter(user=user)
-    data = [{'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price)} for item in wishlist_items]
+    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'company': item.product.company.id } for item in wishlist_items]
     return Response(data)
 
 @api_view(['POST'])
@@ -1148,6 +1166,20 @@ def remove_from_wishlist(request, product_id):
     wishlist_item = get_object_or_404(Wishlist, user=user, product_id=product_id)
     wishlist_item.delete()
     return Response({'message': 'Item removed from wishlist'}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def clear_cart(request):
+    user = request.user
+    Cart.objects.filter(user=user).delete()
+    return Response({'message': 'Cart cleared successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def clear_wishlist(request):
+    user = request.user
+    Wishlist.objects.filter(user=user).delete()
+    return Response({'message': 'Wishlist cleared successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
 ##payment##
@@ -5163,3 +5195,147 @@ class CompanyServiceCategoryListView(APIView):
             data.append(company_data)
         
         return Response(data, status=status.HTTP_200_OK)
+
+
+
+import stripe
+import logging
+from django.conf import settings
+from rest_framework import generics, permissions
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Payment, Inquiry
+from .serializers import PaymentSerializer
+
+# Set Stripe API key
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+class PaymentCreateView(generics.CreateAPIView):
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        logger.debug(f"Received request to create payment intent for user {request.user.id}")
+        logger.debug(f"Request data: {request.data}")
+
+        # Validate serializer data
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            logger.error(f"Serializer validation failed: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        inquiry_id = request.data.get('inquiry_id')
+        amount_in_cents = request.data.get('amount')
+
+        # Validate inquiry_id
+        try:
+            inquiry = Inquiry.objects.get(id=inquiry_id, user=request.user)
+        except Inquiry.DoesNotExist:
+            logger.error(f"Inquiry {inquiry_id} not found or user {request.user.id} not authorized")
+            return Response(
+                {"error": "Inquiry not found or you don't have permission"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validate and convert amount
+        try:
+            amount_in_cents = float(amount_in_cents)
+            if amount_in_cents <= 0:
+                raise ValueError("Amount must be positive")
+            amount_in_rs = amount_in_cents / 100
+        except (ValueError, TypeError):
+            logger.error(f"Invalid amount format: {amount_in_cents}")
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Create a Stripe Payment Intent
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(amount_in_cents),
+                currency="usd",  # Changed to "usd"
+                payment_method_types=["card"],
+                metadata={"inquiry_id": inquiry_id},
+                
+            )
+
+            # Save the Payment instance
+            payment = serializer.save(
+                inquiry=inquiry,
+                payment_method="stripe",
+                amount=amount_in_rs
+            )
+
+            logger.info(f"Payment intent created successfully for inquiry {inquiry_id}, payment ID {payment.id}")
+            return Response({"client_secret": payment_intent.client_secret}, status=status.HTTP_200_OK)
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error: {str(e)}")
+            return Response({"error": "Payment processing failed: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+from rest_framework import generics, permissions
+from rest_framework.response import Response
+from .models import Payment
+from .serializers import PaymentSerializer
+
+class PaymentListView(generics.ListAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        inquiry_id = self.request.query_params.get('inquiry_id')
+        if inquiry_id:
+            return Payment.objects.filter(inquiry_id=inquiry_id, inquiry__user=self.request.user)
+        return Payment.objects.none()
+
+##userdelection
+
+import stripe
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from django.contrib.auth import logout
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+User = get_user_model()
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def permanent_delete_account(request):
+    user = request.user
+    try:
+        # Delete the user's Stripe customer if it exists
+        if user.stripe_customer_id:
+            try:
+                stripe.Customer.delete(user.stripe_customer_id)
+            except stripe.error.StripeError as e:
+                print(f"Error deleting Stripe customer: {str(e)}")
+        # Log the user out before deleting their account
+        logout(request)
+        # Permanently delete the user
+        user.delete()
+        return Response({'message': 'Account permanently deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_password(request):
+    user = request.user
+    password = request.data.get('password')
+    if user.check_password(password):
+        return Response({'message': 'Password verified'}, status=status.HTTP_200_OK)
+    return Response({'error': 'Incorrect password'}, status=status.HTTP_400_BAD_REQUEST)
