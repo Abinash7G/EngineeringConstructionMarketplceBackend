@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from .models import (
     Inquiry, EngineeringConsultingData, BuildingConstructionData,
     PostConstructionMaintenanceData, SafetyTrainingData, Order,
-    Company, RentVerification, Subscription, Notification, CustomUser, Appointment, Agreement, Comment, OrderItem
+    Company, RentVerification, Subscription, Notification, CustomUser, Appointment, Agreement, Comment, OrderItem, 
 )
 # signals.py
 from django.dispatch import Signal
@@ -849,3 +849,100 @@ def send_building_construction_notification(sender, instance, created, **kwargs)
         logger.error(f"AttributeError in BuildingConstructionData signal for inquiry ID: {getattr(instance, 'inquiry_id', 'unknown')}, error: {str(e)}")
     except Exception as e:
         logger.error(f"Error creating BuildingConstructionData notification for inquiry ID: {instance.inquiry.id}, error: {str(e)}")
+
+
+
+
+
+# # from django.db.models.signals import post_save
+# # from django.dispatch import receiver
+# # from .models import Order, OrderItem
+
+# # @receiver(post_save, sender=Order)
+# # def update_stock_on_renting_status_change(sender, instance, **kwargs):
+# #     if instance.order_type in ['renting', 'mixed'] and instance.renting_status == 'picked up':
+# #         for item in instance.items.filter(item_type='renting'):
+# #             product = item.product
+# #             if product.stock >= item.quantity:  # Double-check stock availability
+# #                 product.stock -= item.quantity
+# #                 product.save()
+# #             else:
+# #                 # Handle the case where stock is insufficient at pickup time
+# #                 raise Exception(f"Insufficient stock for product {product.title} during pickup")
+            
+
+# # @receiver(post_save, sender=Order)
+# # def restore_stock_on_cancel_or_return(sender, instance, **kwargs):
+# #     if instance.order_type in ['buying', 'mixed'] and instance.buying_status == 'cancelled':
+# #         for item in instance.items.filter(item_type='buying'):
+# #             product = item.product
+# #             product.stock += item.quantity
+# #             product.save()
+# #     if instance.order_type in ['renting', 'mixed'] and instance.renting_status == 'returned':
+# #         for item in instance.items.filter(item_type='renting'):
+# #             product = item.product
+# #             product.stock += item.quantity
+# #             product.save()
+
+# from django.db.models.signals import post_save
+# from django.dispatch import receiver
+# from django.db import transaction
+# from .models import Order, OrderItem, Product
+
+# @receiver(post_save, sender=Order)
+# def update_stock_on_renting_status_change(sender, instance, created, **kwargs):
+#     """
+#     Reduce stock for renting items when the renting_status changes to 'picked up'.
+#     """
+#     if created:  # Skip if the order is being created
+#         return
+
+#     if instance.order_type in ['renting', 'mixed'] and instance.renting_status == 'picked up':
+#         try:
+#             # Fetch the previous state of the order to check if the status changed
+#             old_instance = Order.objects.get(pk=instance.pk)
+#             if old_instance.renting_status != 'picked up':  # Only proceed if the status changed to 'picked up'
+#                 with transaction.atomic():
+#                     for item in instance.items.filter(item_type='renting'):
+#                         product = item.product
+#                         if product.stock >= item.quantity:  # Double-check stock availability
+#                             product.stock -= item.quantity
+#                             product.save()
+#                         else:
+#                             raise Exception(f"Insufficient stock for product {product.title} during pickup")
+#         except Order.DoesNotExist:
+#             pass
+
+# # @receiver(post_save, sender=Order)
+# # def restore_stock_on_cancel_or_return(sender, instance, created, **kwargs):
+# #     """
+# #     Restore stock for buying items when buying_status is 'cancelled'.
+# #     Restore stock for renting items when renting_status is 'returned'.
+# #     """
+# #     if created:  # Skip if the order is being created
+# #         return
+
+# #     try:
+# #         # Fetch the previous state of the order to check if the status changed
+# #         old_instance = Order.objects.get(pk=instance.pk)
+
+# #         # Handle buying items cancellation
+# #         if instance.order_type in ['buying', 'mixed'] and instance.buying_status == 'cancelled':
+# #             if old_instance.buying_status != 'cancelled':  # Only proceed if the status changed to 'cancelled'
+# #                 with transaction.atomic():
+# #                     for item in instance.items.filter(item_type='buying'):
+# #                         product = item.product
+# #                         product.stock += item.quantity
+# #                         product.save()
+
+# #         # Handle renting items return
+# #         if instance.order_type in ['renting', 'mixed'] and instance.renting_status == 'returned':
+# #             if old_instance.renting_status != 'returned':  # Only proceed if the status changed to 'returned'
+# #                 with transaction.atomic():
+# #                     for item in instance.items.filter(item_type='renting'):
+# #                         product = item.product
+# #                         product.stock += item.quantity
+# #                         product.save()
+
+# #     except Order.DoesNotExist:
+# #         pass

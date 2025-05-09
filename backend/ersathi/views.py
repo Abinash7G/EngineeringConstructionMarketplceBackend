@@ -786,13 +786,6 @@ def get_company_products(request):
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Product
-from .serializers import ProductSerializer
-
 @api_view(['GET'])
 def get_product_by_id(request, id):
     try:
@@ -879,6 +872,7 @@ class Test(APIView):
                 'discountPercentage': str(product.discount_percentage) if product.discount_percentage else None,
                 'company': product.company_id,
                 'isAvailable': product.is_available,
+                'stock': product.stock,
                 'createdAt': product.created_at.isoformat(),
             } for product in products]
             return Response(data, status=200)
@@ -911,6 +905,7 @@ class Test(APIView):
         # 6) Convert 'isAvailable' string to boolean
         is_available = data.get("isAvailable", "false").lower() == "true"
 
+        stock = int(data.get("stock", 0))  # Handle stock field
         # 7) Handle per_day_rent properly
         per_day_rent = None
         if category == "renting":
@@ -918,6 +913,7 @@ class Test(APIView):
                 per_day_rent = Decimal(data.get("perDayRent", "0"))  # Default to 0 if missing
             except:
                 return Response({"error": "Invalid perDayRent value."}, status=400)
+        
 
         # 8) Create the new product
         product = Product.objects.create(
@@ -930,6 +926,7 @@ class Test(APIView):
             image=image_file,  # Handle file
             company=company,
             is_available=is_available,
+            stock=stock,  # Save stock
         )
 
         return Response({"message": "Product created successfully", "id": product.id}, status=201)
@@ -957,7 +954,7 @@ class Test(APIView):
                 per_day_rent = Decimal(data.get("perDayRent", "0"))
             except:
                 return Response({"error": "Invalid perDayRent value."}, status=400)
-
+        stock = int(data.get("stock", 0))  # Handle stock field
         product.title = data["title"]
         product.description = data["description"]
         product.price = Decimal(data["price"])
@@ -965,6 +962,8 @@ class Test(APIView):
         product.per_day_rent = per_day_rent
         product.discount_percentage = discount_value
         product.is_available = is_available
+        product.stock = stock  # Update stock
+
 
         if image_file:
             product.image = image_file
@@ -1350,14 +1349,206 @@ class CreatePaymentIntentView(APIView):
 
 
 
-# core/views.py
-from django.db import IntegrityError
+# # core/views.py
+# from django.db import IntegrityError
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .models import Order, OrderItem, Company, CustomUser
+# from .serializers import OrderSerializer
+
+
+# class OrderCreateView(APIView):
+#     def post(self, request):
+#         try:
+#             user_id = request.data.get("user_id")
+#             order_type = request.data.get("order_type")
+#             total_amount = request.data.get("total_amount")
+#             buying_items = request.data.get("buying_items", [])
+#             renting_items = request.data.get("renting_items", [])
+#             billing_details = request.data.get("billing_details")
+#             renting_details = request.data.get("renting_details")
+#             booking_id = request.data.get("booking_id")
+#             transaction_uuid = request.data.get("transaction_uuid")
+
+#             if not user_id or not order_type or not total_amount or not booking_id:
+#                 return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             if not buying_items and not renting_items:
+#                 return Response({"error": "At least one buying or renting item is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # all_items = buying_items + renting_items
+#             # company_ids = set(item["company_id"] for item in all_items if "company_id" in item)
+
+#             # if len(company_ids) != 1:
+#             #     return Response({"error": "All items must belong to the same company for a single order"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # company_id = company_ids.pop()
+#             # company = Company.objects.get(id=company_id)
+#             user = CustomUser.objects.get(id=user_id)
+
+#             order = Order.objects.create(
+#                 user=user,
+#                 # company=company,
+#                 order_type=order_type,
+#                 total_amount=total_amount,
+#                 billing_details=billing_details,
+#                 renting_details=renting_details,
+#                 booking_id=booking_id,
+#                 buying_status=None if order_type == "renting" else "pending",
+#                 renting_status=None if order_type == "buying" else "pending",
+#             )
+#             # order_status_updated.send(
+#             # sender=Order,
+#             # instance=order,
+#             # created=False,
+#             # raw=False,
+#             # using='default',
+#             # update_fields=None,
+#             # user=request.user  # <--- extra data here
+#             # )
+#             for item in buying_items:
+#                 OrderItem.objects.create(
+#                     order=order,
+#                     product_id=item["product_id"],
+#                     quantity=item["quantity"],
+#                     price=item["price"],
+#                     item_type="buying",
+#                 )
+
+#             for item in renting_items:
+#                 OrderItem.objects.create(
+#                     order=order,
+#                     product_id=item["product_id"],
+#                     quantity=item["quantity"],
+#                     price=item["price"],
+#                     item_type="renting",
+#                 )
+
+#             serializer = OrderSerializer(order)
+#             return Response({
+#                 "invoices": {
+#                     "order_id": order.id,
+#                     "booking_id": booking_id,
+#                     "transaction_uuid": transaction_uuid,
+#                     "order_type": order_type,
+#                 },
+#                 "order": serializer.data
+#             }, status=status.HTTP_201_CREATED)
+#         except Company.DoesNotExist:
+#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except CustomUser.DoesNotExist:
+#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except IntegrityError as e:
+#             return Response({"error": f"Database error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# # {
+# from django.db import transaction
+# from django.db import IntegrityError
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .models import Order, OrderItem, Company, CustomUser, Product
+# from .serializers import OrderSerializer
+
+# class OrderCreateView(APIView):
+#     def post(self, request):
+#         try:
+#             user_id = request.data.get("user_id")
+#             order_type = request.data.get("order_type")
+#             total_amount = request.data.get("total_amount")
+#             buying_items = request.data.get("buying_items", [])
+#             renting_items = request.data.get("renting_items", [])
+#             billing_details = request.data.get("billing_details")
+#             renting_details = request.data.get("renting_details")
+#             booking_id = request.data.get("booking_id")
+#             transaction_uuid = request.data.get("transaction_uuid")
+
+#             if not user_id or not order_type or not total_amount or not booking_id:
+#                 return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             if not buying_items and not renting_items:
+#                 return Response({"error": "At least one buying or renting item is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             user = CustomUser.objects.get(id=user_id)
+
+#             # Step 1: Validate stock for all items
+#             all_items = buying_items + renting_items
+#             for item in all_items:
+#                 product = Product.objects.get(id=item["product_id"])
+#                 if product.stock < item["quantity"]:
+#                     return Response(
+#                         {"error": f"Insufficient stock for product {product.title}. Available: {product.stock}, Requested: {item['quantity']}"},
+#                         status=status.HTTP_400_BAD_REQUEST
+#                     )
+
+#             # Step 2: Create the order and update stock for buying items only
+#             with transaction.atomic():
+#                 order = Order.objects.create(
+#                     user=user,
+#                     order_type=order_type,
+#                     total_amount=total_amount,
+#                     billing_details=billing_details,
+#                     renting_details=renting_details,
+#                     booking_id=booking_id,
+#                     buying_status=None if order_type == "renting" else "pending",
+#                     renting_status=None if order_type == "buying" else "pending",
+#                 )
+
+#                 # Process buying items
+#                 for item in buying_items:
+#                     product = Product.objects.get(id=item["product_id"])
+#                     product.stock -= item["quantity"]  # Decrease stock for buying
+#                     product.save()
+
+#                     OrderItem.objects.create(
+#                         order=order,
+#                         product_id=item["product_id"],
+#                         quantity=item["quantity"],
+#                         price=item["price"],
+#                         item_type="buying",
+#                     )
+
+#                 # Process renting items (stock will be reduced later when status is "picked up")
+#                 for item in renting_items:
+#                     OrderItem.objects.create(
+#                         order=order,
+#                         product_id=item["product_id"],
+#                         quantity=item["quantity"],
+#                         price=item["price"],
+#                         item_type="renting",
+#                     )
+
+#             serializer = OrderSerializer(order)
+#             return Response({
+#                 "invoices": {
+#                     "order_id": order.id,
+#                     "booking_id": booking_id,
+#                     "transaction_uuid": transaction_uuid,
+#                     "order_type": order_type,
+#                 },
+#                 "order": serializer.data
+#             }, status=status.HTTP_201_CREATED)
+
+#         except Company.DoesNotExist:
+#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except CustomUser.DoesNotExist:
+#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Product.DoesNotExist:
+#             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except IntegrityError as e:
+#             return Response({"error": f"Database error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# # ]
+from django.db import IntegrityError, transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Order, OrderItem, Company, CustomUser
+from .models import Order, OrderItem, Company, CustomUser, Product
 from .serializers import OrderSerializer
-
 
 class OrderCreateView(APIView):
     def post(self, request):
@@ -1378,53 +1569,57 @@ class OrderCreateView(APIView):
             if not buying_items and not renting_items:
                 return Response({"error": "At least one buying or renting item is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # all_items = buying_items + renting_items
-            # company_ids = set(item["company_id"] for item in all_items if "company_id" in item)
-
-            # if len(company_ids) != 1:
-            #     return Response({"error": "All items must belong to the same company for a single order"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # company_id = company_ids.pop()
-            # company = Company.objects.get(id=company_id)
             user = CustomUser.objects.get(id=user_id)
 
-            order = Order.objects.create(
-                user=user,
-                # company=company,
-                order_type=order_type,
-                total_amount=total_amount,
-                billing_details=billing_details,
-                renting_details=renting_details,
-                booking_id=booking_id,
-                buying_status=None if order_type == "renting" else "pending",
-                renting_status=None if order_type == "buying" else "pending",
-            )
-            # order_status_updated.send(
-            # sender=Order,
-            # instance=order,
-            # created=False,
-            # raw=False,
-            # using='default',
-            # update_fields=None,
-            # user=request.user  # <--- extra data here
-            # )
-            for item in buying_items:
-                OrderItem.objects.create(
-                    order=order,
-                    product_id=item["product_id"],
-                    quantity=item["quantity"],
-                    price=item["price"],
-                    item_type="buying",
+            # Validate stock for all items
+            with transaction.atomic():  # Ensure atomicity
+                for item in buying_items + renting_items:
+                    product = Product.objects.get(id=item["product_id"])
+                    quantity = item["quantity"]
+                    if product.stock < quantity:
+                        return Response(
+                            {"error": f"Insufficient stock for product {product.title}. Available: {product.stock}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                # Create order
+                order = Order.objects.create(
+                    user=user,
+                    order_type=order_type,
+                    total_amount=total_amount,
+                    billing_details=billing_details,
+                    renting_details=renting_details,
+                    booking_id=booking_id,
+                    buying_status=None if order_type == "renting" else "pending",
+                    renting_status=None if order_type == "buying" else "pending",
                 )
 
-            for item in renting_items:
-                OrderItem.objects.create(
-                    order=order,
-                    product_id=item["product_id"],
-                    quantity=item["quantity"],
-                    price=item["price"],
-                    item_type="renting",
-                )
+                # Create order items and reduce stock
+                for item in buying_items:
+                    product = Product.objects.get(id=item["product_id"])
+                    quantity = item["quantity"]
+                    OrderItem.objects.create(
+                        order=order,
+                        product_id=item["product_id"],
+                        quantity=quantity,
+                        price=item["price"],
+                        item_type="buying",
+                    )
+                    product.stock -= quantity  # Reduce stock for buying
+                    product.save()
+
+                for item in renting_items:
+                    product = Product.objects.get(id=item["product_id"])
+                    quantity = item["quantity"]
+                    OrderItem.objects.create(
+                        order=order,
+                        product_id=item["product_id"],
+                        quantity=quantity,
+                        price=item["price"],
+                        item_type="renting",
+                    )
+                    product.stock -= quantity  # Reduce stock for renting
+                    product.save()
 
             serializer = OrderSerializer(order)
             return Response({
@@ -1436,6 +1631,9 @@ class OrderCreateView(APIView):
                 },
                 "order": serializer.data
             }, status=status.HTTP_201_CREATED)
+
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
         except Company.DoesNotExist:
             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
         except CustomUser.DoesNotExist:
@@ -1588,65 +1786,131 @@ class CompanyOrderListView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# # {}        
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .models import Order, OrderItem, Company, CustomUser, PaymentDistribution
+# from .serializers import OrderSerializer
+# from rest_framework.permissions import IsAuthenticated
+# # from .signals import order_status_updated
+# class UpdateOrderStatusView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def patch(self, request, order_id):
+#         try:
+#             order = Order.objects.get(id=order_id)
+
+#             new_buying_status = request.data.get("buying_status")
+#             new_renting_status = request.data.get("renting_status")
+
+#             # Validate and update buying_status for buying or mixed orders
+#             if new_buying_status and order.order_type in ["buying", "mixed"]:
+#                 valid_buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
+#                 if new_buying_status not in valid_buying_statuses:
+#                     return Response(
+#                         {"error": f"Invalid buying status. Must be one of {valid_buying_statuses}"},
+#                         status=status.HTTP_400_BAD_REQUEST
+#                     )
+#                 order.buying_status = new_buying_status
+
+#             # Validate and update renting_status for renting or mixed orders
+#             if new_renting_status and order.order_type in ["renting", "mixed"]:
+#                 valid_renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+#                 if new_renting_status not in valid_renting_statuses:
+#                     return Response(
+#                         {"error": f"Invalid renting status. Must be one of {valid_renting_statuses}"},
+#                         status=status.HTTP_400_BAD_REQUEST
+#                     )
+#                 order.renting_status = new_renting_status
+
+#             # Ensure at least one status is being updated
+#             if not new_buying_status and not new_renting_status:
+#                 return Response(
+#                     {"error": "At least one of buying_status or renting_status must be provided"},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+
+#             order.save()
+#             # order_status_updated.send(
+#             # sender=Order,
+#             # instance=order,
+#             # created=True,
+#             # raw=False,
+#             # using='default',
+#             # update_fields=None,
+#             # user=request.user  # <--- extra data here
+#             # )
+#             serializer = OrderSerializer(order)
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         except Order.DoesNotExist:
+#             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+#         # ]
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Order, OrderItem, Company, CustomUser, PaymentDistribution
-from .serializers import OrderSerializer
 from rest_framework.permissions import IsAuthenticated
-# from .signals import order_status_updated
+from .models import Order, OrderItem, Product
+from .serializers import OrderSerializer
+from django.db import transaction
+
 class UpdateOrderStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
-
             new_buying_status = request.data.get("buying_status")
             new_renting_status = request.data.get("renting_status")
 
-            # Validate and update buying_status for buying or mixed orders
-            if new_buying_status and order.order_type in ["buying", "mixed"]:
-                valid_buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
-                if new_buying_status not in valid_buying_statuses:
+            with transaction.atomic():  # Ensure atomicity
+                # Validate and update buying_status for buying or mixed orders
+                if new_buying_status and order.order_type in ["buying", "mixed"]:
+                    valid_buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
+                    if new_buying_status not in valid_buying_statuses:
+                        return Response(
+                            {"error": f"Invalid buying status. Must be one of {valid_buying_statuses}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    order.buying_status = new_buying_status
+
+                # Validate and update renting_status for renting or mixed orders
+                if new_renting_status and order.order_type in ["renting", "mixed"]:
+                    valid_renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+                    if new_renting_status not in valid_renting_statuses:
+                        return Response(
+                            {"error": f"Invalid renting status. Must be one of {valid_renting_statuses}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    # Restore stock when renting_status is set to "Returned"
+                    if new_renting_status == "Returned":
+                        order_items = OrderItem.objects.filter(order=order, item_type="renting")
+                        for item in order_items:
+                            product = Product.objects.get(id=item.product_id)
+                            product.stock += item.quantity  # Restore stock
+                            product.save()
+
+                    order.renting_status = new_renting_status
+
+                # Ensure at least one status is being updated
+                if not new_buying_status and not new_renting_status:
                     return Response(
-                        {"error": f"Invalid buying status. Must be one of {valid_buying_statuses}"},
+                        {"error": "At least one of buying_status or renting_status must be provided"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                order.buying_status = new_buying_status
 
-            # Validate and update renting_status for renting or mixed orders
-            if new_renting_status and order.order_type in ["renting", "mixed"]:
-                valid_renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
-                if new_renting_status not in valid_renting_statuses:
-                    return Response(
-                        {"error": f"Invalid renting status. Must be one of {valid_renting_statuses}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                order.renting_status = new_renting_status
+                order.save()
 
-            # Ensure at least one status is being updated
-            if not new_buying_status and not new_renting_status:
-                return Response(
-                    {"error": "At least one of buying_status or renting_status must be provided"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            order.save()
-            # order_status_updated.send(
-            # sender=Order,
-            # instance=order,
-            # created=True,
-            # raw=False,
-            # using='default',
-            # update_fields=None,
-            # user=request.user  # <--- extra data here
-            # )
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         except Order.DoesNotExist:
             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -3439,70 +3703,6 @@ def delete_service(request, service_id):
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
 
-#subscription
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from django.utils import timezone
-# from datetime import timedelta
-# from .models import Subscription, Company
-# from .serializers import SubscriptionSerializer
-# class SubscriptionPaymentIntentView(APIView):
-#     def post(self, request, company_id):
-#         logger.debug(f"Received request to create payment intent for company {company_id}")
-#         try:
-#             company = Company.objects.get(id=company_id)
-#             if not request.user.is_authenticated:
-#                 return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
-#             if request.user.company_id != company.id and not request.user.is_staff:
-#                 return Response({"error": "You are not authorized to perform this action"}, status=status.HTTP_403_FORBIDDEN)
-
-#             plan = request.data.get('plan')
-#             price = request.data.get('price')
-#             if plan == 'trial':
-#                 return Response({'error': 'Trial plan does not require payment'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             if plan not in ['monthly', 'quarterly', 'yearly']:
-#                 return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             plan_prices = {
-#                 'monthly': 500,
-#                 'quarterly': 1200,
-#                 'yearly': 4500,
-#             }
-#             amount = plan_prices[plan]
-
-#             payment_intent = stripe.PaymentIntent.create(
-#                 amount=amount,
-#                 currency="usd",
-#                 metadata={
-#                     "company_id": company_id,
-#                     "plan": plan,
-#                 },
-#                 automatic_payment_methods={"enabled": True},
-#             )
-
-#             if company.stripe_account_id:
-#                 stripe.PaymentIntent.modify(
-#                     payment_intent.id,
-#                     transfer_group=f"subscription_{company_id}_{plan}",
-#                     transfer_data={
-#                         "destination": company.stripe_account_id,
-#                     },
-#                 )
-
-#             return Response({
-#                 "client_secret": payment_intent.client_secret,
-#             }, status=status.HTTP_200_OK)
-#         except Company.DoesNotExist:
-#             return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
-#         except stripe.error.StripeError as e:
-#             logger.error(f"Stripe error: {str(e)}")
-#             return Response({"error": "Payment processing failed: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
-#         except Exception as e:
-#             logger.error(f"Unexpected error: {str(e)}")
-#             return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 # from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -3588,55 +3788,6 @@ class SubscriptionPaymentIntentView(APIView):
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
             return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class SubscriptionStatusView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, company_id):
-#         try:
-#             company = Company.objects.get(id=company_id)
-#             if request.user.company_id != company.id and not request.user.is_staff:
-#                 return Response({"error": "You are not authorized to perform this action"}, status=status.HTTP_403_FORBIDDEN)
-
-#             subscription = Subscription.objects.filter(
-#                 company=company
-#             ).order_by('-start_date').first()
-
-#             if not subscription:
-#                 return Response({
-#                     'is_subscribed': False,
-#                     'end_date': None,
-#                     'trial_end_date': None,
-#                     'grace_end_date': None,
-#                     'has_used_trial': False,
-#                     'is_valid': False
-#                 }, status=status.HTTP_200_OK)
-
-#             is_valid = subscription.is_valid()
-#             if not is_valid and subscription.is_active:
-#                 subscription.is_active = False
-#                 subscription.save()
-
-#             return Response({
-#                 'is_subscribed': subscription.plan != 'trial' and subscription.end_date > timezone.now(),
-#                 'end_date': subscription.end_date,
-#                 'trial_end_date': subscription.trial_end_date,
-#                 'grace_end_date': subscription.grace_end_date,
-#                 'has_used_trial': subscription.has_used_trial,
-#                 'is_valid': is_valid
-#             }, status=status.HTTP_200_OK)
-#         except Company.DoesNotExist:
-#             return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error in SubscriptionStatusView: {str(e)}")
-#             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SubscriptionStatusView(APIView):
     permission_classes = [IsAuthenticated]
@@ -3680,222 +3831,6 @@ class SubscriptionStatusView(APIView):
             logger.error(f"Error in SubscriptionStatusView: {str(e)}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
-# from django.utils import timezone
-# from datetime import timedelta
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class SubscribeView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, company_id):
-#         try:
-#             # Log the incoming request data for debugging
-#             logger.debug(f"SubscribeView - Request data: {request.data}")
-
-#             company = Company.objects.get(id=company_id)
-#             if request.user.company_id != company.id and not request.user.is_staff:
-#                 return Response({"error": "You are not authorized to perform this action"}, status=status.HTTP_403_FORBIDDEN)
-
-#             plan = request.data.get('plan')
-#             payment_data = request.data.get('payment_data')
-
-#             if plan not in ['trial', 'monthly', 'quarterly', 'yearly']:
-#                 return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             existing_subscription = Subscription.objects.filter(
-#                 company=company
-#             ).order_by('-start_date').first()
-
-#             if plan == 'trial':
-#                 if existing_subscription and existing_subscription.has_used_trial:
-#                     return Response({'error': 'Free trial already used'}, status=status.HTTP_400_BAD_REQUEST)
-#                 # Create trial subscription
-#                 subscription = Subscription.objects.create(
-#                     company=company,
-#                     plan='trial',
-#                     start_date=timezone.now(),
-#                     trial_end_date=timezone.now() + timedelta(days=15),
-#                     is_active=True,
-#                     has_used_trial=True
-#                 )
-#                 return Response(SubscriptionSerializer(subscription).data, status=status.HTTP_200_OK)
-
-#             if not payment_data or not payment_data.get('transaction_id'):
-#                 return Response({'error': 'Payment data required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             start_date = timezone.now()
-#             duration_days = {
-#                 'monthly': 30,
-#                 'quarterly': 90,
-#                 'yearly': 365,
-#             }
-#             total_days = duration_days[plan]
-
-#             if existing_subscription and existing_subscription.is_valid():
-#                 remaining_time = max(
-#                     existing_subscription.end_date or timezone.now(),
-#                     existing_subscription.trial_end_date or timezone.now(),
-#                     existing_subscription.grace_end_date or timezone.now()
-#                 ) - start_date
-#                 remaining_days = remaining_time.days
-#                 if remaining_days > 0:
-#                     total_days += remaining_days
-#                 existing_subscription.is_active = False
-#                 existing_subscription.save()
-
-#             end_date = start_date + timedelta(days=total_days)
-#             subscription = Subscription.objects.create(
-#                 company=company,
-#                 plan=plan,
-#                 start_date=start_date,
-#                 end_date=end_date,
-#                 grace_end_date=end_date + timedelta(days=5),
-#                 is_active=True,
-#                 payment_data=payment_data,
-#                 has_used_trial=existing_subscription.has_used_trial if existing_subscription else False
-#             )
-
-#             # Log the subscription object before serialization
-#             logger.debug(f"Subscription created: {subscription.__dict__}")
-
-#             # Serialize the subscription
-#             serializer = SubscriptionSerializer(subscription)
-#             logger.debug(f"Serialized data: {serializer.data}")
-
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-
-#         except Company.DoesNotExist:
-#             logger.error("Company not found for company_id: %s", company_id)
-#             return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             # Log the full exception details
-#             logger.exception(f"Error in SubscribeView: {str(e)}")
-#             return Response({'error': f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
-# from django.utils import timezone
-# from datetime import timedelta
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class SubscribeView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, company_id):
-#         try:
-#             logger.debug(f"SubscribeView - Request data: {request.data}")
-
-#             company = Company.objects.get(id=company_id)
-#             if request.user.company_id != company.id and not request.user.is_staff:
-#                 return Response({"error": "You are not authorized to perform this action"}, status=status.HTTP_403_FORBIDDEN)
-
-#             plan = request.data.get('plan')
-#             price = request.data.get('price')
-#             payment_data = request.data.get('payment_data')
-
-            
-
-#             if plan not in ['trial', 'monthly', 'quarterly', 'yearly']:
-#                 return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             if price is None:
-#                 return Response({'error': 'Price is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             try:
-#                 price = float(price)
-#                 if price < 0:
-#                     raise ValueError("Price cannot be negative")
-#             except (ValueError, TypeError):
-#                 return Response({'error': 'Invalid price'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Validate price against Plan model (except for trial)
-#             if plan != 'trial':
-#                 try:
-#                     plan_obj = Plan.objects.get(name__iexact=plan)
-#                     if abs(float(plan_obj.price) - price) > 0.01:
-#                         return Response({'error': 'Price does not match plan'}, status=status.HTTP_400_BAD_REQUEST)
-#                 except Plan.DoesNotExist:
-#                     return Response({'error': 'Plan not found'}, status=status.HTTP_400_BAD_REQUEST)
-#             else:
-#                 if price != 0.00:
-#                     return Response({'error': 'Trial plan must have zero price'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             existing_subscription = Subscription.objects.filter(
-#                 company=company
-#             ).order_by('-start_date').first()
-
-#             if plan == 'trial':
-#                 if existing_subscription and existing_subscription.has_used_trial:
-#                     return Response({'error': 'Free trial already used'}, status=status.HTTP_400_BAD_REQUEST)
-#                 subscription = Subscription.objects.create(
-#                     company=company,
-#                     plan='trial',
-#                     amount=price,  # Store price as amount
-#                     start_date=timezone.now(),
-#                     trial_end_date=timezone.now() + timedelta(days=15),
-#                     is_active=True,
-#                     has_used_trial=True
-#                 )
-#                 return Response(SubscriptionSerializer(subscription).data, status=status.HTTP_200_OK)
-
-#             if not payment_data or not payment_data.get('transaction_id'):
-#                 return Response({'error': 'Payment data required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             start_date = timezone.now()
-#             duration_days = {
-#                 'monthly': 30,
-#                 'quarterly': 90,
-#                 'yearly': 365,
-#             }
-#             total_days = duration_days[plan]
-
-#             if existing_subscription and existing_subscription.is_valid():
-#                 remaining_time = max(
-#                     existing_subscription.end_date or timezone.now(),
-#                     existing_subscription.trial_end_date or timezone.now(),
-#                     existing_subscription.grace_end_date or timezone.now()
-#                 ) - start_date
-#                 remaining_days = remaining_time.days
-#                 if remaining_days > 0:
-#                     total_days += remaining_days
-#                 existing_subscription.is_active = False
-#                 existing_subscription.save()
-
-#             end_date = start_date + timedelta(days=total_days)
-#             subscription = Subscription.objects.create(
-#                 company=company,
-#                 plan=plan,
-#                 amount=price,  # Store price as amount
-#                 start_date=start_date,
-#                 end_date=end_date,
-#                 grace_end_date=end_date + timedelta(days=5),
-#                 is_active=True,
-#                 payment_data=payment_data,
-#                 has_used_trial=existing_subscription.has_used_trial if existing_subscription else False
-#             )
-
-#             logger.debug(f"Subscription created: {subscription.__dict__}")
-#             serializer = SubscriptionSerializer(subscription)
-#             logger.debug(f"Serialized data: {serializer.data}")
-
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-
-#         except Company.DoesNotExist:
-#             logger.error("Company not found for company_id: %s", company_id)
-#             return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.exception(f"Error in SubscribeView: {str(e)}")
-#             return Response({'error': f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from rest_framework.views import APIView
 from rest_framework.response import Response

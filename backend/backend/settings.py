@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'social_django',
     'django_rest_passwordreset',
     
+    
     # 'channels',
     
 

@@ -115,6 +115,10 @@ class Product(models.Model):
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Discount percentage
     company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='products', null=True, blank=True)
     is_available = models.BooleanField(default=True)
+    stock = models.PositiveIntegerField(default=0)  # New field for stock quantity
+    rating = models.FloatField(default=0.0)  # New field for average rating
+    num_reviews = models.PositiveIntegerField(default=0)  # New field for number of reviews
+    created_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def final_rent_price(self):
@@ -150,7 +154,7 @@ class CompanyInfo(models.Model):
     )
     
     # Rest of your existing fields remain the same
-    company_name = models.CharField(max_length=255)
+    company_name = models.CharField(max_length=255) 
     company_email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     address = models.CharField(max_length=255)
