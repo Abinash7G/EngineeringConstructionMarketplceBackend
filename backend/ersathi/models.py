@@ -114,12 +114,19 @@ class Product(models.Model):
     image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Discount percentage
     company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='products', null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
     is_available = models.BooleanField(default=True)
     stock = models.PositiveIntegerField(default=0)  # New field for stock quantity
     rating = models.FloatField(default=0.0)  # New field for average rating
     num_reviews = models.PositiveIntegerField(default=0)  # New field for number of reviews
     created_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        """Automatically set the location from the associated company."""
+        if self.company:
+            self.location = self.company.location
+        super().save(*args, **kwargs)
 
     def final_rent_price(self):
         """Calculate the final rent price after applying discount."""
@@ -130,6 +137,26 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# models.py
+class Rating(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='ratings')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.FloatField()  # Rating value (e.g., 1 to 5)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'user')  # Ensure a user can rate a product only once
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update product's average rating and num_reviews
+        product = self.product
+        ratings = product.ratings.all()
+        product.num_reviews = ratings.count()
+        product.rating = sum(r.rating for r in ratings) / product.num_reviews if product.num_reviews > 0 else 0.0
+        product.save()
 
 #####################
 ##COMPANY_INFO####

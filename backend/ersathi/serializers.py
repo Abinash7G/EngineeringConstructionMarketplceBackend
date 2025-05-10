@@ -499,21 +499,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'created_at', 'booking_id', 'company_amounts', 'payment_data'
         ]
 
-    # def get_buying_items(self, obj):
-    #     buying_items = obj.items.filter(item_type='buying')
-    #     return OrderItemSerializer(buying_items, many=True).data
-
-    # def get_renting_items(self, obj):
-    #     renting_items = obj.items.filter(item_type='renting')
-    #     return OrderItemSerializer(renting_items, many=True).data
-
-    # def get_company_amounts(self, obj):
-    #     company_amounts = {}
-    #     for item in obj.items.all():
-    #         company_id = item.product.company.id
-    #         amount = item.price * item.quantity
-    #         company_amounts[str(company_id)] = company_amounts.get(str(company_id), 0) + float(amount)
-    #     return company_amounts
     def get_buying_items(self, obj):
         # Get the company_id from the context (passed from the view)
         company_id = self.context.get('company_id')
@@ -547,6 +532,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 amount *= obj.renting_details.get('rentingDays', 1)
             company_amounts[item_company_id] = company_amounts.get(item_company_id, 0) + float(amount)
         return company_amounts
+
 
 
 
@@ -645,6 +631,28 @@ class FeaturedCompanySerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = ChatMessage
 #         fields = ['sender', 'message', 'created_at']
+
+
+# serializers.py
+from rest_framework import serializers
+from .models import Rating, Product
+
+class RatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rating
+        fields = ['id', 'product', 'user', 'rating', 'created_at']
+        read_only_fields = ['user', 'created_at']
+
+
+
+
+
+
+
+
+
+
+
 
 
 # serializers.py

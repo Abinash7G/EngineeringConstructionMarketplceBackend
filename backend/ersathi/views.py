@@ -871,6 +871,7 @@ class Test(APIView):
                 'perDayRent': str(product.per_day_rent) if product.per_day_rent else None,
                 'discountPercentage': str(product.discount_percentage) if product.discount_percentage else None,
                 'company': product.company_id,
+                'location': product.location,
                 'isAvailable': product.is_available,
                 'stock': product.stock,
                 'createdAt': product.created_at.isoformat(),
@@ -1114,7 +1115,7 @@ User = get_user_model()
 def get_cart(request):
     user = request.user
     cart_items = Cart.objects.filter(user=user)
-    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'quantity': item.quantity, 'company': item.product.company.id } for item in cart_items]
+    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'quantity': item.quantity, 'company': item.product.company.id } for item in cart_items]
     return Response(data)
 
 @api_view(['POST'])
@@ -1145,7 +1146,7 @@ def remove_from_cart(request, product_id):
 def get_wishlist(request):
     user = request.user
     wishlist_items = Wishlist.objects.filter(user=user)
-    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'company': item.product.company.id } for item in wishlist_items]
+    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'company': item.product.company.id } for item in wishlist_items]
     return Response(data)
 
 @api_view(['POST'])
@@ -5274,3 +5275,38 @@ def verify_password(request):
     if user.check_password(password):
         return Response({'message': 'Password verified'}, status=status.HTTP_200_OK)
     return Response({'error': 'Incorrect password'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import Rating, Product
+from .serializers import RatingSerializer
+
+class SubmitRatingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if the user already rated this product
+        rating, created = Rating.objects.get_or_create(
+            user=request.user,
+            product=product,
+            defaults={'rating': request.data.get('rating')}
+        )
+
+        if not created:
+            # If rating exists, update it
+            rating.rating = request.data.get('rating')
+            rating.save()
+
+        serializer = RatingSerializer(rating)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -39,6 +39,7 @@ from ersathi.views import (
     SubmitCompanyRating,
    
     SubmitInquiryView,
+    SubmitRatingView,
     SubscribeView,
     SubscriptionPaymentIntentView,
     SubscriptionStatusView,
@@ -203,6 +204,7 @@ urlpatterns = [
     path('api/products/<str:category>/', get_products_by_category, name='get_products_by_category'),
     path('api/company-products/', get_company_products, name='get_company_products'),
     path('api/products-item/<int:id>/', get_product_by_id, name='get_product_by_id'),
+    path('api/rating/<int:product_id>/', SubmitRatingView.as_view(), name='submit-rating'),
 
     # Test
     path('api/test/', Test.as_view(), name='create_Test'),
