@@ -1742,7 +1742,217 @@ class OrderListView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-from django.db.models import Q 
+# from django.db.models import Q 
+# class CompanyOrderListView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         try:
+#             user = request.user
+#             # Get filter parameter from query string
+#             filter_status = request.query_params.get('filter_status', None)
+
+#             # Base query: fetch orders with items belonging to the user's company
+#             orders = Order.objects.filter(
+#                 items__product__company=user.company
+#             ).distinct().order_by('-created_at')
+
+#             # Define status categories
+#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
+#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+
+#             # Apply filter based on filter_status
+#             if filter_status:
+#                 if filter_status.lower() == "all_except_delivered_returned":
+#                     # Exclude orders with buying_status: "Delivered" and renting_status: "Returned"
+#                     orders = orders.filter(
+#                         ~Q(order_type__in=['buying', 'mixed'], buying_status="Delivered") &
+#                         ~Q(order_type__in=['renting', 'mixed'], renting_status="Returned")
+#                     )
+#                 elif filter_status in buying_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
+#                     )
+#                 elif filter_status in renting_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
+#                     )
+
+#             # Pass the company_id to the serializer context
+#             serializer = OrderSerializer(
+#                 orders,
+#                 many=True,
+#                 context={'company_id': str(user.company.id)}
+#             )
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#22
+# from django.db.models import Q
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from rest_framework.permissions import IsAuthenticated
+# from .models import Order
+# from .serializers import OrderSerializer
+# import logging
+
+# logger = logging.getLogger(__name__)
+
+# class CompanyOrderListView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         try:
+#             user = request.user
+#             # Get filter parameter from query string
+#             filter_status = request.query_params.get('filter_status', None)
+
+#             # Base query: fetch orders with items belonging to the user's company
+#             orders = Order.objects.filter(
+#                 items__product__company=user.company
+#             ).distinct().order_by('-created_at')
+
+#             # Define status categories
+#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
+#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+
+#             # Apply filter based on filter_status
+#             if filter_status:
+#                 if filter_status.lower() == "all_except_delivered_returned":
+#                     # Exclude orders with buying_status: "Delivered" and renting_status: "Returned"
+#                     orders = orders.filter(
+#                         ~Q(order_type__in=['buying', 'mixed'], buying_status="Delivered") &
+#                         ~Q(order_type__in=['renting', 'mixed'], renting_status="Returned")
+#                     )
+#                 elif filter_status in buying_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
+#                     )
+#                 elif filter_status in renting_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
+#                     )
+
+#             # Pass the company_id to the serializer context
+#             serializer = OrderSerializer(
+#                 orders,
+#                 many=True,
+#                 context={'company_id': str(user.company.id)}
+#             )
+
+#             # Filter out orders with no relevant items
+#             filtered_orders = [
+#                 order for order in serializer.data
+#                 if order['buying_items'] or order['renting_items']
+#             ]
+
+#             logger.info(f"Returning {len(filtered_orders)} orders for company_id={user.company.id}")
+#             return Response(filtered_orders, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             logger.error(f"Error fetching company orders: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# from django.db.models import Q
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from rest_framework.permissions import IsAuthenticated
+# from .models import Order
+# from .serializers import OrderSerializer
+# import logging
+# from datetime import datetime
+
+# logger = logging.getLogger(__name__)
+
+# class CompanyOrderListView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         try:
+#             user = request.user
+#             # Get filter parameters from query string
+#             filter_status = request.query_params.get('filter_status', None)
+#             start_date = request.query_params.get('start_date', None)
+#             end_date = request.query_params.get('end_date', None)
+
+#             # Base query: fetch orders with items belonging to the user's company
+#             orders = Order.objects.filter(
+#                 items__product__company=user.company
+#             ).distinct()
+
+#             # Apply date-wise filtering if provided
+#             if start_date:
+#                 try:
+#                     start_date = datetime.strptime(start_date, '%Y-%m-%d')
+#                     orders = orders.filter(created_at__gte=start_date)
+#                 except ValueError:
+#                     return Response({"error": "Invalid start_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             if end_date:
+#                 try:
+#                     end_date = datetime.strptime(end_date, '%Y-%m-%d')
+#                     orders = orders.filter(created_at__lte=end_date)
+#                 except ValueError:
+#                     return Response({"error": "Invalid end_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Define status categories
+#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
+#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+#             active_buying_statuses = ["Paid", "Processing"]
+#             active_renting_statuses = ["Booked", "Picked Up"]
+
+#             # Apply filter based on filter_status
+#             if filter_status:
+#                 if filter_status.lower() == "all_except_delivered_returned":
+#                     # Default filter: show only active orders (Paid, Processing for buying; Booked, Picked Up for renting)
+#                     orders = orders.filter(
+#                         # For buying/mixed orders, only include Paid or Processing
+#                         Q(order_type__in=['buying', 'mixed'], buying_status__in=active_buying_statuses) |
+#                         # For renting/mixed orders, only include Booked or Picked Up
+#                         Q(order_type__in=['renting', 'mixed'], renting_status__in=active_renting_statuses)
+#                     )
+#                 elif filter_status in buying_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
+#                     )
+#                 elif filter_status in renting_statuses:
+#                     orders = orders.filter(
+#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
+#                     )
+
+#             # Order by created_at descending
+#             orders = orders.order_by('-created_at')
+
+#             # Pass the company_id to the serializer context
+#             serializer = OrderSerializer(
+#                 orders,
+#                 many=True,
+#                 context={'company_id': str(user.company.id)}
+#             )
+
+#             # Filter out orders with no relevant items
+#             filtered_orders = [
+#                 order for order in serializer.data
+#                 if order['buying_items'] or order['renting_items']
+#             ]
+
+#             logger.info(f"Returning {len(filtered_orders)} orders for company_id={user.company.id}")
+#             return Response(filtered_orders, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             logger.error(f"Error fetching company orders: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+from django.db.models import Q
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import Order
+from .serializers import OrderSerializer
+import logging
+
+logger = logging.getLogger(__name__)
+
 class CompanyOrderListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1755,19 +1965,23 @@ class CompanyOrderListView(APIView):
             # Base query: fetch orders with items belonging to the user's company
             orders = Order.objects.filter(
                 items__product__company=user.company
-            ).distinct().order_by('-created_at')
+            ).distinct()
 
             # Define status categories
             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
+            active_buying_statuses = ["Paid", "Processing"]
+            active_renting_statuses = ["Booked", "Picked Up"]
 
             # Apply filter based on filter_status
             if filter_status:
                 if filter_status.lower() == "all_except_delivered_returned":
-                    # Exclude orders with buying_status: "Delivered" and renting_status: "Returned"
+                    # Default filter: show only active orders (Paid, Processing for buying; Booked, Picked Up for renting)
                     orders = orders.filter(
-                        ~Q(order_type__in=['buying', 'mixed'], buying_status="Delivered") &
-                        ~Q(order_type__in=['renting', 'mixed'], renting_status="Returned")
+                        # For buying/mixed orders, only include Paid or Processing
+                        Q(order_type__in=['buying', 'mixed'], buying_status__in=active_buying_statuses) |
+                        # For renting/mixed orders, only include Booked or Picked Up
+                        Q(order_type__in=['renting', 'mixed'], renting_status__in=active_renting_statuses)
                     )
                 elif filter_status in buying_statuses:
                     orders = orders.filter(
@@ -1778,14 +1992,26 @@ class CompanyOrderListView(APIView):
                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
                     )
 
+            # Order by created_at descending
+            orders = orders.order_by('-created_at')
+
             # Pass the company_id to the serializer context
             serializer = OrderSerializer(
                 orders,
                 many=True,
                 context={'company_id': str(user.company.id)}
             )
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # Filter out orders with no relevant items
+            filtered_orders = [
+                order for order in serializer.data
+                if order['buying_items'] or order['renting_items']
+            ]
+
+            logger.info(f"Returning {len(filtered_orders)} orders for company_id={user.company.id}")
+            return Response(filtered_orders, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"Error fetching company orders: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # # {}        
 # from rest_framework.views import APIView
@@ -1914,6 +2140,68 @@ class UpdateOrderStatusView(APIView):
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.core.mail import send_mail
+from .models import Order
+from django.contrib.auth.models import User
+from rest_framework import status
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_booking_email(request):
+    try:
+        data = request.data
+        order_id = data.get('order_id')
+        pickup_location = data.get('pickup_location')
+        full_name = data.get('full_name')
+        subject = data.get('subject')
+        message = data.get('message')
+
+        if not order_id or not pickup_location or not full_name:
+            return Response({'error': 'Missing required fields'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch the order
+        order = Order.objects.get(id=order_id)
+        if order.renting_status != 'Booked':
+            return Response({'error': 'Order must be in Booked status to send email'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch the user email using user_id
+        try:
+            user = User.objects.get(id=order.user_id)
+            to_email = user.email
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Use provided subject and message, or construct defaults
+        final_subject = subject or f"Booking Confirmation for Order #{order_id}"
+        final_message = message or (
+            f"Dear {full_name},\n\n"
+            f"Your booking for Order #{order_id} has been confirmed!\n"
+            f"Please pick up your item(s) at the following location:\n"
+            f"{pickup_location}\n\n"
+            f"Thank you for choosing our services!\n"
+            f"Best regards,\n"
+            f"Your Company Name"
+        )
+
+        from_email = 'fybproject6@gmail.com'
+        recipient_list = [to_email]
+
+        # Send the email
+        send_mail(final_subject, final_message, from_email, recipient_list, fail_silently=False)
+
+        return Response({'message': 'Email sent successfully'}, status=status.HTTP_200_OK)
+    except Order.DoesNotExist:
+        return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
 
 ##############
 ##companyinfo##
@@ -2704,7 +2992,7 @@ class CompanyInquiriesView(APIView):
             # Fetch inquiries and prefetch related service-specific data
             inquiries = Inquiry.objects.filter(company_id=company_id).select_related(
                 'engineering_data', 'building_data', 'maintenance_data', 'training_data'
-            )
+            ).prefetch_related('payments')
             print(f"Inquiries found: {inquiries.count()}")  # Debug log
             if not inquiries.exists():
                 return Response([], status=status.HTTP_200_OK)
@@ -3488,6 +3776,115 @@ Best regards,
 
 
 
+
+from django.core.files.storage import default_storage
+from datetime import datetime, timedelta
+import logging
+from .models import Inquiry, Appointment, Company, EngineeringConsultingData, Comment
+from .serializers import InquirySerializer, CommentSerializer
+
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_structural_design(request, inquiry_id):
+    try:
+        inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+        engineering_data = inquiry.engineering_data
+        structural_design = request.FILES.get('structural_design')
+        if not structural_design:
+            return Response({'error': 'Please select a structural design file to upload'}, status=400)
+        
+        file_path = f'inquiry_files/engineering/structural/{inquiry_id}_{structural_design.name}'
+        default_storage.save(file_path, structural_design)
+        engineering_data.structural_design = file_path
+        engineering_data.save()
+        return Response({'message': 'Structural design uploaded successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in upload_structural_design: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_structural_report(request, inquiry_id):
+    try:
+        inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+        engineering_data = inquiry.engineering_data
+        structural_report = request.FILES.get('structural_report')
+        if not structural_report:
+            return Response({'error': 'Please select a structural report file to upload'}, status=400)
+        
+        file_path = f'inquiry_files/engineering/structural/{inquiry_id}_{structural_report.name}'
+        default_storage.save(file_path, structural_report)
+        engineering_data.structural_report = file_path
+        engineering_data.save()
+        return Response({'message': 'Structural report uploaded successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in upload_structural_report: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_architectural_design(request, inquiry_id):
+    try:
+        inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+        engineering_data = inquiry.engineering_data
+        architectural_design = request.FILES.get('architectural_design')
+        if not architectural_design:
+            return Response({'error': 'Please select an architectural design file to upload'}, status=400)
+        
+        file_path = f'inquiry_files/engineering/architectural/{inquiry_id}_{architectural_design.name}'
+        default_storage.save(file_path, architectural_design)
+        engineering_data.architectural_design = file_path
+        engineering_data.save()
+        return Response({'message': 'Architectural design uploaded successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in upload_architectural_design: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_cost_estimation_files(request, inquiry_id):
+    try:
+        inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+        engineering_data = inquiry.engineering_data
+        cost_estimation_files = request.FILES.get('cost_estimation_files')
+        if not cost_estimation_files:
+            return Response({'error': 'Please select cost estimation files to upload'}, status=400)
+        
+        file_path = f'inquiry_files/engineering/cost_estimation/{inquiry_id}_{cost_estimation_files.name}'
+        default_storage.save(file_path, cost_estimation_files)
+        engineering_data.cost_estimation_files = file_path
+        engineering_data.save()
+        return Response({'message': 'Cost estimation files uploaded successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in upload_cost_estimation_files: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_rate_analysis(request, inquiry_id):
+    try:
+        inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+        engineering_data = inquiry.engineering_data
+        rate_analysis = request.FILES.get('rate_analysis')
+        if not rate_analysis:
+            return Response({'error': 'Please select a rate analysis file to upload'}, status=400)
+        
+        file_path = f'inquiry_files/engineering/rate_analysis/{inquiry_id}_{rate_analysis.name}'
+        default_storage.save(file_path, rate_analysis)
+        engineering_data.rate_analysis = file_path
+        engineering_data.save()
+        return Response({'message': 'Rate analysis uploaded successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in upload_rate_analysis: {str(e)}")
+        return Response({'error': str(e)}, status=500)
+
+
+
+
+
+
 #ADMIN
 @csrf_exempt
 def service_categories(request):
@@ -4025,87 +4422,117 @@ from django.db.models.functions import TruncMonth, TruncDay
 
 import datetime
 
+
+# from django.db.models import Sum, Count
+# from django.db.models.functions import TruncMonth
+# from .models import PaymentDistribution, Appointment
+# import datetime
+
 # class RevenueAnalyticsView(APIView):
 #     permission_classes = [IsAuthenticated]
 
 #     def get(self, request):
-#         company_id = request.user.company_id  # Adjust based on your auth setup
-#         # Group revenue by month (you can change to TruncDay for daily data)
-#         revenue_data = (
-#             PaymentDistribution.objects.filter(company_id=company_id)
-#             .annotate(month=TruncMonth('created_at'))
-#             .values('month')
-#             .annotate(total_revenue=Sum('amount'))
-#             .order_by('month')
-#         )
+#         # company_id = request.user.company_id
+#         company_id = request.user.company.id if request.user.company else None
+#         if not company_id:
+#             return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
+#         time_range = request.query_params.get('time_range', '6m')  # Default to 6 months
 
-#         # Format the data for the frontend
-#         revenue_over_time = [
-#             {
-#                 'month': entry['month'].strftime('%Y-%m'),  # Format as YYYY-MM
-#                 'total_revenue': float(entry['total_revenue']),  # Convert Decimal to float
-#             }
-#             for entry in revenue_data
-#         ]
+#         # Calculate the start date based on time_range
+#         if time_range == '3m':
+#             # start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+#             start_date = timezone.now() - timedelta(days=90)
+#         elif time_range == '12m':
+#             start_date = timezone.now() - timedelta(days=365)
+#             # start_date = datetime.datetime.now() - datetime.timedelta(days=365)
+#         elif time_range == 'all':
+#             start_date = None  # No filter, fetch all data
+#         else:  # Default to 6 months
+#             # start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+#             start_date = timezone.now() - timedelta(days=180)
 
-#         return Response(revenue_over_time)           
-# class AppointmentAnalyticsView(APIView):
-#     permission_classes = [IsAuthenticated]
+#         # Fetch revenue data
+#         try:
+#             query = PaymentDistribution.objects.filter(company_id=company_id)
+#             if start_date:
+#                 query = query.filter(created_at__gte=start_date)
 
-#     def get(self, request):
-#         company_id = request.user.company_id  # Adjust based on your auth setup
-#         # Group appointments by month and status
-#         appointment_data = (
-#             Appointment.objects.filter(company_id=company_id)
-#             .annotate(month=TruncMonth('created_at'))
-#             .values('month', 'status')
-#             .annotate(count=Count('id'))
-#             .order_by('month', 'status')
-#         )
+#             revenue_data = (
+#                 query
+#                 .annotate(month=TruncMonth('created_at'))
+#                 .values('month')
+#                 .annotate(total_revenue=Sum('amount'))
+#                 .order_by('month')
+#             )
 
-#         # Format the data for the frontend
-#         appointment_over_time = {}
-#         for entry in appointment_data:
-#             month = entry['month'].strftime('%Y-%m')
-#             if month not in appointment_over_time:
-#                 appointment_over_time[month] = {'Pending': 0, 'Confirmed': 0, 'No-Show': 0, 'Completed': 0}
-#             appointment_over_time[month][entry['status']] = entry['count']
+#             revenue_over_time = [
+#                 {
+#                     'month': entry['month'].strftime('%Y-%m'),
+#                     'total_revenue': float(entry['total_revenue']),
+#                 }
+#                 for entry in revenue_data
+#             ]
 
-#         # Convert to list format for easier frontend handling
-#         formatted_data = [
-#             {'month': month, **statuses}
-#             for month, statuses in appointment_over_time.items()
-#         ]
+#             return Response(revenue_over_time, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             logger.error(f"Error fetching revenue analytics: {str(e)}")
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import PaymentDistribution
+import logging
+from datetime import timedelta
+from django.utils import timezone
 
-#         return Response(formatted_data)
-
-from django.db.models import Sum, Count
-from django.db.models.functions import TruncMonth
-from .models import PaymentDistribution, Appointment
-import datetime
+logger = logging.getLogger(__name__)
 
 class RevenueAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # company_id = request.user.company_id
         company_id = request.user.company.id if request.user.company else None
         if not company_id:
             return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
+        
         time_range = request.query_params.get('time_range', '6m')  # Default to 6 months
 
-        # Calculate the start date based on time_range
-        if time_range == '3m':
-            # start_date = datetime.datetime.now() - datetime.timedelta(days=90)
+        # Calculate the start date and aggregation type based on time_range
+        if time_range == '1w':
+            start_date = timezone.now() - timedelta(days=7)
+            trunc_function = TruncWeek
+            date_format = '%Y-%m-%d'
+            label_key = 'week'
+        elif time_range == '1m':
+            start_date = timezone.now() - timedelta(days=30)
+            trunc_function = TruncMonth
+            date_format = '%Y-%m'
+            label_key = 'month'
+        elif time_range == '3m':
             start_date = timezone.now() - timedelta(days=90)
-        elif time_range == '12m':
-            start_date = timezone.now() - timedelta(days=365)
-            # start_date = datetime.datetime.now() - datetime.timedelta(days=365)
-        elif time_range == 'all':
-            start_date = None  # No filter, fetch all data
-        else:  # Default to 6 months
-            # start_date = datetime.datetime.now() - datetime.timedelta(days=180)
+            trunc_function = TruncMonth
+            date_format = '%Y-%m'
+            label_key = 'month'
+        elif time_range == '6m':
             start_date = timezone.now() - timedelta(days=180)
+            trunc_function = TruncMonth
+            date_format = '%Y-%m'
+            label_key = 'month'
+        elif time_range == '1y':
+            start_date = timezone.now() - timedelta(days=365)
+            trunc_function = TruncYear
+            date_format = '%Y'
+            label_key = 'year'
+        elif time_range == 'all':
+            start_date = None
+            trunc_function = TruncMonth
+            date_format = '%Y-%m'
+            label_key = 'month'
+        else:
+            return Response({"error": "Invalid time range"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Fetch revenue data
         try:
@@ -4115,15 +4542,15 @@ class RevenueAnalyticsView(APIView):
 
             revenue_data = (
                 query
-                .annotate(month=TruncMonth('created_at'))
-                .values('month')
+                .annotate(period=trunc_function('created_at'))
+                .values('period')
                 .annotate(total_revenue=Sum('amount'))
-                .order_by('month')
+                .order_by('period')
             )
 
             revenue_over_time = [
                 {
-                    'month': entry['month'].strftime('%Y-%m'),
+                    label_key: entry['period'].strftime(date_format),
                     'total_revenue': float(entry['total_revenue']),
                 }
                 for entry in revenue_data
@@ -4132,6 +4559,85 @@ class RevenueAnalyticsView(APIView):
             return Response(revenue_over_time, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error fetching revenue analytics: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+from django.db.models import Sum
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import Order, OrderItem
+import logging
+from datetime import timedelta
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+class TopPurchasedItemsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company_id = request.user.company.id if request.user.company else None
+        if not company_id:
+            logger.error("User is not associated with a company")
+            return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        time_range = request.query_params.get('time_range', '6m')
+        logger.info(f"Fetching top purchased items for company_id={company_id}, time_range={time_range}")
+
+        # Calculate the start date based on time_range
+        if time_range == '1w':
+            start_date = timezone.now() - timedelta(days=7)
+        elif time_range == '1m':
+            start_date = timezone.now() - timedelta(days=30)
+        elif time_range == '6m':
+            start_date = timezone.now() - timedelta(days=180)
+        elif time_range == '1y':
+            start_date = timezone.now() - timedelta(days=365)
+        else:
+            logger.error(f"Invalid time range: {time_range}")
+            return Response({"error": "Invalid time range"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Filter order items by company (via PaymentDistribution), buying status, and time range
+            query = OrderItem.objects.filter(
+                item_type='buying',
+                order__buying_status__in=['Paid', 'Delivered'],
+                order__payment_distributions__company_id=company_id
+            )
+            logger.info(f"After basic filters: Found {query.count()} matching order items for company_id={company_id}")
+
+            # Apply time range filter
+            if start_date:
+                query = query.filter(order__created_at__gte=start_date)
+            logger.info(f"After time range filter: Found {query.count()} matching order items")
+
+            # Aggregate by product, summing quantities
+            top_items = (
+                query
+                .values('product__id', 'product__title', 'product__category')
+                .annotate(total_quantity=Sum('quantity'))
+                .order_by('-total_quantity')[:6]  # Top 6 products
+            )
+
+            top_items_data = [
+                {
+                    'product_id': entry['product__id'],
+                    'product_name': entry['product__title'],
+                    'category': entry['product__category'],
+                    'total_quantity': int(entry['total_quantity']),
+                }
+                for entry in top_items
+            ]
+
+            if not top_items_data:
+                logger.warning(f"No top purchased items found for company_id={company_id}, time_range={time_range}")
+            else:
+                logger.info(f"Returning {len(top_items_data)} top purchased items: {top_items_data}")
+
+            return Response(top_items_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching top purchased items: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AppointmentAnalyticsView(APIView):
@@ -4620,325 +5126,6 @@ class FeaturedCompaniesView(APIView):
         return Response(serializer.data)
 
 
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework import status
-# import uuid
-# from .models import ChatChannel, Company, CustomUser
-# from .utils import can_user_chat_with_company, can_user_chat_with_admin, can_company_chat_with_admin
-# from .agora_utils import generate_agora_rtm_token, AGORA_APP_ID
-# import logging
-# logger = logging.getLogger(__name__)
-# # views.py
-# class CreateChatChannel(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         user = request.user
-#         channel_type = request.data.get('channel_type')
-#         company_id = request.data.get('company_id')
-#         admin_id = request.data.get('admin_id')
-#         channel_id = str(uuid.uuid4())
-
-#         try:
-#             if channel_type == 'user_company' and company_id:
-#                 company = Company.objects.get(id=company_id)
-#                 has_permission = can_user_chat_with_company(user, company)
-#                 if not has_permission:
-#                     logger.warning(f"User {user.id} denied chat with company {company_id}: No inquiry or order.")
-#                     return Response({"error": "User cannot chat with this company."}, status=status.HTTP_403_FORBIDDEN)
-                
-#                 # Check for existing active channel
-#                 existing_channel = ChatChannel.objects.filter(
-#                     channel_type='user_company', user=user, company=company, is_active=True
-#                 ).first()
-#                 if existing_channel:
-#                     token = generate_agora_rtm_token(str(user.id))
-#                     return Response({
-#                         "channel_id": existing_channel.channel_id,
-#                         "token": token,
-#                         "app_id": AGORA_APP_ID
-#                     }, status=status.HTTP_200_OK)
-
-#                 ChatChannel.objects.create(
-#                     channel_id=channel_id,
-#                     channel_type='user_company',
-#                     user=user,
-#                     company=company
-#                 )
-
-#             elif channel_type == 'user_admin' and admin_id:
-#                 admin = CustomUser.objects.get(id=admin_id, is_superuser=True)
-#                 if not can_user_chat_with_admin(user):
-#                     return Response({"error": "User cannot chat with admin."}, status=status.HTTP_403_FORBIDDEN)
-                
-#                 # Check for existing active channel
-#                 existing_channel = ChatChannel.objects.filter(
-#                     channel_type='user_admin', user=user, admin=admin, is_active=True
-#                 ).first()
-#                 if existing_channel:
-#                     token = generate_agora_rtm_token(str(user.id))
-#                     return Response({
-#                         "channel_id": existing_channel.channel_id,
-#                         "token": token,
-#                         "app_id": AGORA_APP_ID
-#                     }, status=status.HTTP_200_OK)
-
-#                 ChatChannel.objects.create(
-#                     channel_id=channel_id,
-#                     channel_type='user_admin',
-#                     user=user,
-#                     admin=admin
-#                 )
-
-#             elif channel_type == 'company_admin' and company_id:
-#                 company = Company.objects.get(id=company_id)
-#                 if not (user.company and user.company == company):
-#                     return Response({"error": "User does not belong to this company."}, status=status.HTTP_403_FORBIDDEN)
-#                 if not can_company_chat_with_admin(company):
-#                     return Response({"error": "Company cannot chat with admin."}, status=status.HTTP_403_FORBIDDEN)
-                
-#                 admin = CustomUser.objects.get(id=admin_id, is_superuser=True)
-#                 # Check for existing active channel
-#                 existing_channel = ChatChannel.objects.filter(
-#                     channel_type='company_admin', company=company, admin=admin, is_active=True
-#                 ).first()
-#                 if existing_channel:
-#                     token = generate_agora_rtm_token(str(user.id))
-#                     return Response({
-#                         "channel_id": existing_channel.channel_id,
-#                         "token": token,
-#                         "app_id": AGORA_APP_ID
-#                     }, status=status.HTTP_200_OK)
-
-#                 ChatChannel.objects.create(
-#                     channel_id=channel_id,
-#                     channel_type='company_admin',
-#                     company=company,
-#                     admin=admin
-#                 )
-
-#             else:
-#                 return Response({"error": "Invalid channel type or missing parameters."}, status=status.HTTP_400_BAD_REQUEST)
-
-#             token = generate_agora_rtm_token(str(user.id))
-#             logger.info(f"Generated Agora RTM token for user {user.id}: {token}")
-
-#             return Response({
-#                 "channel_id": channel_id,
-#                 "token": token,
-#                 "app_id": AGORA_APP_ID
-#             }, status=status.HTTP_201_CREATED)
-
-#         except Company.DoesNotExist:
-#             logger.error(f"Company {company_id} not found.")
-#             return Response({"error": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
-#         except CustomUser.DoesNotExist:
-#             logger.error(f"Admin {admin_id} not found or not a superuser.")
-#             return Response({"error": "Admin not found or not a superuser."}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error creating chat channel: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# class GetChatChannels(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         user_id = request.query_params.get('user_id')
-#         user_type = request.query_params.get('user_type')
-
-#         if not user_id or not user_type:
-#             return Response({"error": "user_id and user_type are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             if user_type == 'user':
-#                 user = CustomUser.objects.get(username=user_id)
-#                 channels = ChatChannel.objects.filter(user=user, is_active=True)
-#             elif user_type == 'company':
-#                 company = Company.objects.get(company_name=user_id)
-#                 if company.company_type == 'supplier':
-#                     channels = ChatChannel.objects.filter(company=company, is_active=True, company__company_type='supplier')
-#                 else:
-#                     channels = ChatChannel.objects.filter(company=company, is_active=True)
-#             elif user_type == 'admin':
-#                 admin = CustomUser.objects.get(username=user_id, is_superuser=True)
-#                 channels = ChatChannel.objects.filter(admin=admin, is_active=True)
-#             else:
-#                 return Response({"error": "Invalid user_type"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Serialize channels (unchanged)
-#             channel_list = [
-#                 {
-#                     "channel_id": channel.channel_id,
-#                     "channel_type": channel.channel_type,
-#                     "user": channel.user.id if channel.user else None,
-#                     "company": {"id": channel.company.id, "company_name": channel.company.company_name} if channel.company else None,
-#                     "admin": channel.admin.id if channel.admin else None,
-#                     "created_at": channel.created_at,
-#                     "is_active": channel.is_active
-#                 }
-#                 for channel in channels
-#             ]
-#             return Response(channel_list, status=status.HTTP_200_OK)
-
-#         except CustomUser.DoesNotExist:
-#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Company.DoesNotExist:
-#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error fetching chat channels: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from .models import ChatMessage
-# from .serializers import ChatMessageSerializer
-
-# class ChatMessageList(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, channel_id):
-#         messages = ChatMessage.objects.filter(channel__channel_id=channel_id)
-#         serializer = ChatMessageSerializer(messages, many=True)
-#         return Response(serializer.data)
-
-# # Add to existing imports
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from .models import ChatChannel
-# from .serializers import ChatChannelSerializer
-
-# class ChatChannelList(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         user_id = request.user.id
-#         user_type = 'admin' if request.user.is_superuser else 'company' if request.user.company else 'user'
-        
-#         if user_type == 'admin':
-#             channels = ChatChannel.objects.filter(admin=user_id)
-#         elif user_type == 'company':
-#             channels = ChatChannel.objects.filter(company=request.user.company)
-#         else:
-#             channels = ChatChannel.objects.filter(user=user_id)
-
-#         serializer = ChatChannelSerializer(channels, many=True)
-#         return Response(serializer.data)
-
-# # Add to existing imports
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-
-# class UserInfoView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         user = request.user
-#         return Response({
-#             'username': user.username,
-#             'is_superuser': user.is_superuser,
-#             'company': user.company.id if user.company else None,
-#         })
-
-
-# # views.py
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework import status
-# from .models import ChatChannel, ChatMessage
-# from .serializers import ChatMessageSerializer
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class SendMessage(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         user = request.user
-#         channel_id = request.data.get('channel_id')
-#         message = request.data.get('message')
-
-#         if not channel_id or not message:
-#             return Response({"error": "channel_id and message are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             channel = ChatChannel.objects.get(channel_id=channel_id, is_active=True)
-            
-#             # Verify user has access to the channel
-#             if (
-#                 (channel.user and channel.user != user) and
-#                 (channel.company and (not user.company or user.company != channel.company)) and
-#                 (channel.admin and not user.is_superuser)
-#             ):
-#                 return Response({"error": "User does not have access to this channel"}, status=status.HTTP_403_FORBIDDEN)
-
-#             # Save the message
-#             chat_message = ChatMessage.objects.create(
-#                 channel=channel,
-#                 sender=user,
-#                 message=message
-#             )
-
-#             serializer = ChatMessageSerializer(chat_message)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-#         except ChatChannel.DoesNotExist:
-#             logger.error(f"Channel {channel_id} not found.")
-#             return Response({"error": "Channel not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error sending message: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# class DeactivateChatChannel(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         channel_id = request.data.get('channel_id')
-
-#         if not channel_id:
-#             return Response({"error": "channel_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             channel = ChatChannel.objects.get(channel_id=channel_id, is_active=True)
-            
-#             # Only channel participants or admins can deactivate
-#             if (
-#                 (channel.user and channel.user != request.user) and
-#                 (channel.company and (not request.user.company or request.user.company != channel.company)) and
-#                 (channel.admin and not request.user.is_superuser) and
-#                 not request.user.is_superuser
-#             ):
-#                 return Response({"error": "User does not have permission to deactivate this channel"}, status=status.HTTP_403_FORBIDDEN)
-
-#             channel.is_active = False
-#             channel.save()
-#             return Response({"message": "Channel deactivated successfully"}, status=status.HTTP_200_OK)
-
-#         except ChatChannel.DoesNotExist:
-#             logger.error(f"Channel {channel_id} not found.")
-#             return Response({"error": "Channel not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             logger.error(f"Error deactivating channel: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# # views.py
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from .models import CustomUser
-
-# class AdminList(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         admins = CustomUser.objects.filter(is_superuser=True).values('id', 'username')
-#         return Response(list(admins))
-
-
 # views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5026,48 +5213,6 @@ class AgoraTokenView(APIView):
 
 
 
-
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import Company, CompanyServices, Service, ServiceCategory
-# from .serializers import CompanySerializer  # Assuming you have a serializer for Company
-
-# class CompanyServiceCategoryListView(APIView):
-#     def get(self, request):
-#         # Get all approved companies
-#         companies = Company.objects.filter(is_approved=True)
-#         data = []
-        
-#         for company in companies:
-#             # Get all services provided by the company
-#             company_services = CompanyServices.objects.filter(company=company)
-#             service_categories = []
-            
-#             # Collect unique service categories for the company
-#             for company_service in company_services:
-#                 category = company_service.service.category
-#                 if category not in service_categories:
-#                     service_categories.append({
-#                         "category_id": category.id,
-#                         "category_name": category.name
-#                     })
-            
-#             # Append company data with its service categories
-#             company_data = {
-#                 "id": company.id,
-#                 "company_name": company.company_name,
-#                 "company_email": company.company_email,
-#                 "company_type": company.company_type,
-#                 "location": company.location,
-#                 "is_approved": company.is_approved,
-#                 "created_at": company.created_at,
-#                 "updated_at": company.updated_at,
-#                 "service_categories": service_categories
-#             }
-#             data.append(company_data)
-        
-#         return Response(data, status=status.HTTP_200_OK)
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5310,3 +5455,66 @@ class SubmitRatingView(APIView):
 
         serializer = RatingSerializer(rating)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    ##suppliers dashboard:
+from django.db.models import Sum, Q
+from django.db.models import Sum
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import Product, OrderItem, PaymentDistribution
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CompanyDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company_id = request.user.company.id if request.user.company else None
+        if not company_id:
+            logger.error("User is not associated with a company")
+            return Response({"error": "User is not associated with a company"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Total Materials: Count of products for the company
+            total_materials = Product.objects.filter(company_id=company_id).count()
+            logger.info(f"Total materials for company_id={company_id}: {total_materials}")
+
+            # Pending Orders: Buying items not yet delivered (Paid, Processing) or canceled
+            buying_pending = OrderItem.objects.filter(
+                item_type='buying',
+                order__buying_status__in=['Paid', 'Processing', 'Cancelled'],
+                order__payment_distributions__company_id=company_id
+            ).count()
+            logger.info(f"Pending buying orders (not delivered or canceled) for company_id={company_id}: {buying_pending}")
+
+            # Delivered Items: Buying items that are delivered
+            buying_delivered = OrderItem.objects.filter(
+                item_type='buying',
+                order__buying_status='Delivered',
+                order__payment_distributions__company_id=company_id
+            ).count()
+            logger.info(f"Delivered buying items for company_id={company_id}: {buying_delivered}")
+
+            # Total Revenue: Sum of amounts from PaymentDistribution
+            total_revenue_query = PaymentDistribution.objects.filter(
+                company_id=company_id
+            ).aggregate(total_revenue=Sum('amount'))
+            total_revenue = float(total_revenue_query['total_revenue'] or 0)
+            logger.info(f"Total revenue for company_id={company_id}: {total_revenue}")
+
+            stats = {
+                "total_materials": total_materials,
+                "pending_orders": buying_pending,
+                "delivered_items": buying_delivered,
+                "total_revenue": total_revenue,
+            }
+
+            logger.info(f"Returning stats for company_id={company_id}: {stats}")
+            return Response(stats, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching company dashboard stats: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

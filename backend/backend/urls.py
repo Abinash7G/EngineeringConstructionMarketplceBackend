@@ -8,6 +8,7 @@ from ersathi import views
 
 from ersathi.views import (
     #AddCommentView,
+    CompanyDashboardStatsView,
     CompanyServiceCategoryListView,
     FeaturedCompaniesView,
     GetUserRating,
@@ -44,6 +45,8 @@ from ersathi.views import (
     SubscriptionPaymentIntentView,
     SubscriptionStatusView,
     Test,
+    TopPurchasedItemsView,
+    
     UpdateAgreementView,
     UpdateAppointmentStatusView,
     UpdateAppointmentView,
@@ -83,6 +86,11 @@ from ersathi.views import (
     update_company_service,
     update_project,
     update_team_member,
+    upload_architectural_design,
+    upload_cost_estimation_files,
+    upload_rate_analysis,
+    upload_structural_design,
+    upload_structural_report,
     user_verification_status,
     
     SignupView,
@@ -172,7 +180,13 @@ urlpatterns = [
     path('api/update-inquiry-status/<int:inquiry_id>/', UpdateInquiryStatusView.as_view(), name='update-inquiry-status'),
     path('company-appointments/', CompanyAppointmentsView.as_view(), name='company-appointments'),
     path('api/payments/', PaymentCreateView.as_view(), name='payment-create'),
-    path('api/payments/', PaymentListView.as_view(), name='payment-list'),
+    path('api/payments-list/', PaymentListView.as_view(), name='payment-list'),
+
+    path('api/upload-structural-design/<int:inquiry_id>/', upload_structural_design, name='upload-structural-design'),
+    path('api/upload-structural-report/<int:inquiry_id>/', upload_structural_report, name='upload-structural-report'),
+    path('api/upload-architectural-design/<int:inquiry_id>/', upload_architectural_design, name='upload-architectural-design'),
+    path('api/upload-cost-estimation-files/<int:inquiry_id>/', upload_cost_estimation_files, name='upload-cost-estimation-files'),
+    path('api/upload-rate-analysis/<int:inquiry_id>/', upload_rate_analysis, name='upload-rate-analysis'),
     # path('mark-inquiries-checked/', MarkInquiriesCheckedView.as_view(), name='mark-inquiries-checked'),
     # path('check-new-company-inquiries/', CheckNewInquiriesView.as_view(), name='check-new-inquiries'),
     # path('api/get-last-inquiry-check/', GetLastInquiryCheckView.as_view(), name='get-last-inquiry-check'),
@@ -229,6 +243,7 @@ urlpatterns = [
     path('api/orders/create/', OrderCreateView.as_view(), name='order-create'),
     path('api/orders/update-payment/', UpdateOrderPaymentView.as_view(), name='order-update-payment'),
     path("api/orders/<int:order_id>/", UpdateOrderStatusView.as_view(), name="update-order-status"),
+    path('api/send-booking-email/', views.send_booking_email, name='send_booking_email'),
     # Rent Verification
     path('api/rent-verification/', RentVerificationCreateView.as_view(), name='rent-verification-create'),
     path('api/rent-verification/<int:pk>/', RentVerificationAdminView.as_view(), name='rent-verification-admin'),
@@ -273,9 +288,11 @@ urlpatterns = [
     path('api/revenue-analytics/', RevenueAnalyticsView.as_view(), name='revenue-analytics'),
     path('api/appointment-analytics/', AppointmentAnalyticsView.as_view(), name='appointment-analytics'),
     path('api/subscription-analytics/', views.SubscriptionAnalyticsView.as_view(), name='subscription-analytics'),
+    path('api/top-purchased-items/', TopPurchasedItemsView.as_view(), name='top-selling-items'),
     path('api/total-revenue/', views.TotalRevenueView.as_view(), name='total-revenue'),
     path("api/sse/notifications/", views.sse_notifications, name="sse_notifications"),
     path("api/notifications/mark_read/", views.mark_notification_read, name="mark_notification_read"),
+    path('api/company-dashboard-stats/', CompanyDashboardStatsView.as_view(), name='company-dashboard-stats'),
     #homepage
     path('api/featured-companies/', FeaturedCompaniesView.as_view(), name='featured-companies'),
     #chat`

@@ -349,7 +349,17 @@ class EngineeringConsultingData(ServiceFormData):
     hvac_plan = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
     construction_permit = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
     cost_estimation = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
+    structural_design = models.FileField(upload_to='inquiry_files/engineering/structural/', blank=True, null=True)
+    structural_report = models.FileField(upload_to='inquiry_files/engineering/structural/', blank=True, null=True)
+    architectural_design = models.FileField(upload_to='inquiry_files/engineering/architectural/', blank=True, null=True)
+    cost_estimation_files = models.FileField(upload_to='inquiry_files/engineering/cost_estimation/', blank=True, null=True)
+    rate_analysis = models.FileField(upload_to='inquiry_files/engineering/rate_analysis/', blank=True, null=True)
+    class Meta:
+        verbose_name = "Engineering Consulting Data"
+        verbose_name_plural = "Engineering Consulting Data"
 
+    def __str__(self):
+        return f"Engineering Data for Inquiry #{self.inquiry.id}"
 
 class BuildingConstructionData(ServiceFormData):
     inquiry = models.OneToOneField(Inquiry, on_delete=models.CASCADE, related_name='building_data')

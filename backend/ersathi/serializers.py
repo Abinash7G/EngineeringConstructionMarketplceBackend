@@ -385,16 +385,62 @@ class SafetyTrainingDataSerializer(serializers.ModelSerializer):
         model = SafetyTrainingData
         fields = '__all__'
 
+
+from .models import Payment
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'amount', 'payment_method', 'purpose', 'created_at']
+
+# class InquirySerializer(serializers.ModelSerializer):
+#     service_data = serializers.SerializerMethodField()
+#     certificate = serializers.SerializerMethodField()
+#     comments = CommentSerializer(many=True, read_only=True)
+#     class Meta:
+#         model = Inquiry
+#         fields = [
+#             'id', 'full_name', 'location', 'email', 'phone_number',
+#             'category', 'sub_service', 'status', 'created_at', 'certificate',
+#             'service_data', 'comments'
+#         ]
+
+#     def get_service_data(self, obj):
+#         try:
+#             if obj.category == "Engineering Consulting" and hasattr(obj, 'engineering_data') and obj.engineering_data:
+#                 return EngineeringConsultingDataSerializer(obj.engineering_data, context=self.context).data
+#             elif obj.category == "Building Construction Services" and hasattr(obj, 'building_data') and obj.building_data:
+#                 return BuildingConstructionDataSerializer(obj.building_data, context=self.context).data
+#             elif obj.category == "Post-Construction Maintenance" and hasattr(obj, 'maintenance_data') and obj.maintenance_data:
+#                 return PostConstructionMaintenanceDataSerializer(obj.maintenance_data, context=self.context).data
+#             elif obj.category == "Safety and Training Services" and hasattr(obj, 'training_data') and obj.training_data:
+#                 return SafetyTrainingDataSerializer(obj.training_data, context=self.context).data
+#             return {}
+#         except Exception as e:
+#             print(f"Error serializing service_data for inquiry {obj.id}: {str(e)}")
+#             return {}
+
+#     def get_certificate(self, obj):
+#         try:
+#             if obj.certificate and hasattr(obj.certificate, 'url'):
+#                 request = self.context.get('request')
+#                 return request.build_absolute_uri(obj.certificate.url) if request else obj.certificate.url
+#             return None
+#         except Exception as e:
+#             print(f"Error serializing certificate for inquiry {obj.id}: {str(e)}")
+#             return None
 class InquirySerializer(serializers.ModelSerializer):
     service_data = serializers.SerializerMethodField()
     certificate = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
+    payments = PaymentSerializer(many=True, read_only=True)  # Add payments field
+
     class Meta:
         model = Inquiry
         fields = [
             'id', 'full_name', 'location', 'email', 'phone_number',
             'category', 'sub_service', 'status', 'created_at', 'certificate',
-            'service_data', 'comments'
+            'service_data', 'comments', 'payments'  
         ]
 
     def get_service_data(self, obj):
@@ -420,8 +466,8 @@ class InquirySerializer(serializers.ModelSerializer):
             return None
         except Exception as e:
             print(f"Error serializing certificate for inquiry {obj.id}: {str(e)}")
-            return None
-    
+            return None  
+        
 class AppointmentSerializer(serializers.ModelSerializer):
     inquiry = InquirySerializer(read_only=True)
     company = serializers.CharField(source='company.company_name', read_only=True)
@@ -431,7 +477,13 @@ class AppointmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'inquiry', 'company', 'appointment_date', 'duration_minutes', 'status', 'created_at']
 
 
+from rest_framework import serializers
+from .models import Payment
 
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'amount', 'payment_method', 'purpose', 'created_at']
 
 # backend/serializers.py
 # from rest_framework import serializers
@@ -486,10 +538,57 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'product', 'product_name', 'quantity', 'price', 'company_id', 'company_name', 'item_type']
 
+# class OrderSerializer(serializers.ModelSerializer):
+#     buying_items = serializers.SerializerMethodField()
+#     renting_items = serializers.SerializerMethodField()
+#     company_amounts = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Order
+#         fields = [
+#             'id', 'order_type', 'buying_items', 'renting_items', 'total_amount',
+#             'renting_details', 'billing_details', 'buying_status', 'renting_status',
+#             'created_at', 'booking_id', 'company_amounts', 'payment_data'
+#         ]
+
+#     def get_buying_items(self, obj):
+#         # Get the company_id from the context (passed from the view)
+#         company_id = self.context.get('company_id')
+#         buying_items = obj.items.filter(item_type='buying')
+#         # Filter items to include only those belonging to the logged-in company
+#         if company_id:
+#             buying_items = buying_items.filter(product__company__id=company_id)
+#         return OrderItemSerializer(buying_items, many=True).data
+
+#     def get_renting_items(self, obj):
+#         # Get the company_id from the context
+#         company_id = self.context.get('company_id')
+#         renting_items = obj.items.filter(item_type='renting')
+#         # Filter items to include only those belonging to the logged-in company
+#         if company_id:
+#             renting_items = renting_items.filter(product__company__id=company_id)
+#         return OrderItemSerializer(renting_items, many=True).data
+
+#     def get_company_amounts(self, obj):
+#         # Get the company_id from the context
+#         company_id = self.context.get('company_id')
+#         company_amounts = {}
+#         for item in obj.items.all():
+#             item_company_id = str(item.product.company.id)
+#             # Only include amounts for the logged-in company
+#             if company_id and item_company_id != str(company_id):
+#                 continue
+#             amount = item.price * item.quantity
+#             # For renting items, multiply by renting days if applicable
+#             if item.item_type == 'renting' and obj.renting_details:
+#                 amount *= obj.renting_details.get('rentingDays', 1)
+#             company_amounts[item_company_id] = company_amounts.get(item_company_id, 0) + float(amount)
+#         return company_amounts
 class OrderSerializer(serializers.ModelSerializer):
     buying_items = serializers.SerializerMethodField()
     renting_items = serializers.SerializerMethodField()
     company_amounts = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()  # Override total_amount
 
     class Meta:
         model = Order
@@ -500,38 +599,49 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
     def get_buying_items(self, obj):
-        # Get the company_id from the context (passed from the view)
         company_id = self.context.get('company_id')
         buying_items = obj.items.filter(item_type='buying')
-        # Filter items to include only those belonging to the logged-in company
         if company_id:
             buying_items = buying_items.filter(product__company__id=company_id)
         return OrderItemSerializer(buying_items, many=True).data
 
     def get_renting_items(self, obj):
-        # Get the company_id from the context
         company_id = self.context.get('company_id')
         renting_items = obj.items.filter(item_type='renting')
-        # Filter items to include only those belonging to the logged-in company
         if company_id:
             renting_items = renting_items.filter(product__company__id=company_id)
         return OrderItemSerializer(renting_items, many=True).data
 
     def get_company_amounts(self, obj):
-        # Get the company_id from the context
         company_id = self.context.get('company_id')
         company_amounts = {}
         for item in obj.items.all():
             item_company_id = str(item.product.company.id)
-            # Only include amounts for the logged-in company
             if company_id and item_company_id != str(company_id):
                 continue
             amount = item.price * item.quantity
-            # For renting items, multiply by renting days if applicable
             if item.item_type == 'renting' and obj.renting_details:
                 amount *= obj.renting_details.get('rentingDays', 1)
             company_amounts[item_company_id] = company_amounts.get(item_company_id, 0) + float(amount)
         return company_amounts
+
+    def get_total_amount(self, obj):
+        # Calculate total_amount based on the filtered items
+        buying_items = self.get_buying_items(obj)
+        renting_items = self.get_renting_items(obj)
+
+        total = 0.0
+
+        # Sum for buying items
+        for item in buying_items:
+            total += float(item['quantity']) * float(item['price'])
+
+        # Sum for renting items (considering renting days)
+        for item in renting_items:
+            renting_days = obj.renting_details.get('rentingDays', 1) if obj.renting_details else 1
+            total += float(item['quantity']) * float(item['price']) * renting_days
+
+        return str(total)  # Return as string to match the original format
 
 
 
