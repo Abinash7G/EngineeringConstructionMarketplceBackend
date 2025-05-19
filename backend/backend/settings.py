@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'social_django',
     'django_rest_passwordreset',
     
+    
     # 'channels',
     
 
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     
 ]
 
@@ -123,12 +125,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+USE_TZ = True
 
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_TZ = True
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -158,6 +161,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
     "http://localhost:3001",  # frontend's URL
     "http://127.0.0.1",
+    "http://127.0.0.1:3000",  # Add these for safety
     "http://localhost"
     
 ]
@@ -165,7 +169,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1",
-    "http://localhost"
+    "http://localhost",
 
 ]
 CSRF_COOKIE_SECURE = False
@@ -188,7 +192,14 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'YOUR_GOOGLE_CLIENT_SECRET'
 
 LOGIN_REDIRECT_URL = '/'
 
-
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 
 
 #emails Settings
@@ -208,28 +219,6 @@ SIMPLE_JWT = {
 }
 
 
-# #PAYMENT GATEWAY STRIPE KEYS
-# STRIPE_SECRET_KEY = 'sk_test_51QnOg8HFXrh998KlLdTxh4bVatiAoAVCKbtUU5jSUzUcULjFznLuI7sRivfgc38kbsG2JQ5UqMArdbHZSJbwBFXH00AviwVSFp'
-# STRIPE_PUBLISHABLE_KEY = 'pk_test_51QnOg8HFXrh998Klft0d4A2QId9hPWxhNlU12COVn2WXlCgzx6BreTWwIE6zNBjINEMd1wANva7HvkWhHKS3XUnp00kQmaYhHn'
-
-# ASGI_APPLICATION = 'backend.asgi.application'
-
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
-#         'CONFIG': {
-#             "hosts": [('127.0.0.1', 6379)],
-#         },
-#     },
-# }
-# import os
-# from dotenv import load_dotenv
-
-# load_dotenv()  # Load .env file if using python-dotenv
-
-# STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "sk_test_51QnOg8HFXrh998KlLdTxh4bVatiAoAVCKbtUU5jSUzUcULjFznLuI7sRivfgc38kbsG2JQ5UqMArdbHZSJbwBFXH00AviwVSFp")
-
-# STRIPE_PUBLISHABLE_KEY = "pk_test_51QnOg8HFXrh998Klft0d4A2QId9hPWxhNlU12COVn2WXlCgzx6BreTWwIE6zNBjINEMd1wANva7HvkWhHKS3XUnp00kQmaYhHn"
 # settings.py
 STRIPE_SECRET_KEY = "sk_test_51QnOg8HFXrh998KlLdTxh4bVatiAoAVCKbtUU5jSUzUcULjFznLuI7sRivfgc38kbsG2JQ5UqMArdbHZSJbwBFXH00AviwVSFp"
 DEFAULT_STRIPE_ACCOUNT_ID ="acct_1QnOfvHtzV2EBJub"
@@ -238,3 +227,35 @@ STRIPE_PUBLISHABLE_KEY = "pk_test_51QnOg8HFXrh998Klft0d4A2QId9hPWxhNlU12COVn2WXl
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 USE_I18N = False
+
+
+from decouple import config
+# AGORA_APP_ID = config('AGORA_APP_ID')
+# AGORA_APP_CERTIFICATE = config('AGORA_APP_CERTIFICATE')
+# # AGORA_APP_ID = config('8238e00c51e248bebdab0d0083cb9161')
+# # AGORA_APP_CERTIFICATE = config('52c49d030d30475996d565b282b1e409')
+AGORA_APP_ID = '8238e00c51e248bebdab0d0083cb9161'
+AGORA_APP_CERTIFICATE = '52c49d030d30475996d565b282b1e409'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}

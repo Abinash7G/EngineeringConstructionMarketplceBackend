@@ -5,12 +5,20 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ersathi import views
+
 from ersathi.views import (
     #AddCommentView,
+    CompanyDashboardStatsView,
+    CompanyServiceCategoryListView,
+    FeaturedCompaniesView,
+    GetUserRating,
+    PaymentCreateView,
+    PaymentListView,
+    RequestSafetyTrainingView,
     RevenueAnalyticsView, 
     AppointmentAnalyticsView,
     CompanyDashboardDataView,
-    CheckNewInquiriesView,
+    # CheckNewInquiriesView,
     ClientAgreementsView,
     ClientInquiriesView,
     CompanyAgreementsView,
@@ -19,8 +27,8 @@ from ersathi.views import (
     CompanyOrderListView,
     CreatePaymentIntentView,
     DeleteAppointmentView,
-    GetLastInquiryCheckView,
-    MarkInquiriesCheckedView,
+    # GetLastInquiryCheckView,
+    # MarkInquiriesCheckedView,
     OrderCreateView,
     OrderListView,
     PlanListView,
@@ -28,18 +36,25 @@ from ersathi.views import (
     RentVerificationCreateView,
     RentVerificationListView,
     RentVerificationUserUpdateView,
+    SafetyTrainingCompaniesView,
+    SubmitCompanyRating,
    
     SubmitInquiryView,
+    SubmitRatingView,
     SubscribeView,
     SubscriptionPaymentIntentView,
     SubscriptionStatusView,
     Test,
+    TopPurchasedItemsView,
+    
     UpdateAgreementView,
     UpdateAppointmentStatusView,
     UpdateAppointmentView,
     UpdateInquiryStatusView,
     UpdateOrderPaymentView,
     UpdateOrderStatusView,
+    clear_cart,
+    clear_wishlist,
     
 
     company_info,
@@ -60,7 +75,9 @@ from ersathi.views import (
     get_company_services_basic,
     get_company_services_by_id,
     get_company_team_members,
+    get_product_by_id,
     get_user_profile,
+    permanent_delete_account,
     project_list_create,
     send_training_email,
    
@@ -69,6 +86,11 @@ from ersathi.views import (
     update_company_service,
     update_project,
     update_team_member,
+    upload_architectural_design,
+    upload_cost_estimation_files,
+    upload_rate_analysis,
+    upload_structural_design,
+    upload_structural_report,
     user_verification_status,
     
     SignupView,
@@ -92,11 +114,23 @@ from ersathi.views import (
     get_wishlist,
     add_to_wishlist,
     remove_from_wishlist,
-   
-  
-   
+    CreateAppointmentView,
+#     CreateChatChannel,
+#     ChatMessageList,
+#    ChatChannelList,
+#    UserInfoView,
+#    DeactivateChatChannel,
+#    SendMessage,
+#    AdminList,
+    # AgoraTokenView,
+    # ChatListView,
+    # MessageView,
+    verify_password,
+    
    
 )
+
+
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -120,6 +154,9 @@ urlpatterns = [
     path('reject-company/<int:pk>/', reject_company, name='reject-company'),
     path('api/confirm-email/<str:token>/', ConfirmEmailView.as_view(), name='confirm-email'),
     path('company-registration/<int:pk>/', get_company_details, name='company-details'),
+    #rating
+    path('submit-rating/<int:company_id>/', SubmitCompanyRating.as_view(), name='submit-rating'),
+    path('user-rating/<int:company_id>/', GetUserRating.as_view(), name='user-rating'),
     #dashboard stat
     path('dashboard-stats/', dashboard_stats, name='dashboard_stats'),
     #company info
@@ -143,12 +180,22 @@ urlpatterns = [
     path('api/company-inquiries/', CompanyInquiriesView.as_view(), name='company-inquiries'),
     path('api/update-inquiry-status/<int:inquiry_id>/', UpdateInquiryStatusView.as_view(), name='update-inquiry-status'),
     path('company-appointments/', CompanyAppointmentsView.as_view(), name='company-appointments'),
-    path('mark-inquiries-checked/', MarkInquiriesCheckedView.as_view(), name='mark-inquiries-checked'),
-    path('check-new-company-inquiries/', CheckNewInquiriesView.as_view(), name='check-new-inquiries'),
-    path('api/get-last-inquiry-check/', GetLastInquiryCheckView.as_view(), name='get-last-inquiry-check'),
+    path('api/payments/', PaymentCreateView.as_view(), name='payment-create'),
+    path('api/payments-list/', PaymentListView.as_view(), name='payment-list'),
+
+    path('api/upload-structural-design/<int:inquiry_id>/', upload_structural_design, name='upload-structural-design'),
+    path('api/upload-structural-report/<int:inquiry_id>/', upload_structural_report, name='upload-structural-report'),
+    path('api/upload-architectural-design/<int:inquiry_id>/', upload_architectural_design, name='upload-architectural-design'),
+    path('api/upload-cost-estimation-files/<int:inquiry_id>/', upload_cost_estimation_files, name='upload-cost-estimation-files'),
+    path('api/upload-rate-analysis/<int:inquiry_id>/', upload_rate_analysis, name='upload-rate-analysis'),
+    # path('mark-inquiries-checked/', MarkInquiriesCheckedView.as_view(), name='mark-inquiries-checked'),
+    # path('check-new-company-inquiries/', CheckNewInquiriesView.as_view(), name='check-new-inquiries'),
+    # path('api/get-last-inquiry-check/', GetLastInquiryCheckView.as_view(), name='get-last-inquiry-check'),
+    
     path('appointments/<int:appointment_id>/update-status/', UpdateAppointmentStatusView.as_view(), name='update-appointment-status'),
     path('api/appointments/<int:appointment_id>/update/', UpdateAppointmentView.as_view(), name='update-appointment'),
     path('api/appointments/<int:appointment_id>/delete/', DeleteAppointmentView.as_view(), name='delete-appointment'),
+    path('api/appointments/create/', CreateAppointmentView.as_view(), name='create-appointment'),
    # path('api/submit-inquiry/<int:company_id>/', SubmitInquiryView.as_view(), name='submit-inquiry'),
    # path('api/company-inquiries/', CompanyInquiriesView.as_view(), name='company-inquiries'),
    #aggrement
@@ -173,6 +220,8 @@ urlpatterns = [
     path('api/products/', get_all_products, name='get_all_products'),
     path('api/products/<str:category>/', get_products_by_category, name='get_products_by_category'),
     path('api/company-products/', get_company_products, name='get_company_products'),
+    path('api/products-item/<int:id>/', get_product_by_id, name='get_product_by_id'),
+    path('api/rating/<int:product_id>/', SubmitRatingView.as_view(), name='submit-rating'),
 
     # Test
     path('api/test/', Test.as_view(), name='create_Test'),
@@ -185,6 +234,8 @@ urlpatterns = [
     path('api/wishlist/', get_wishlist, name='get_wishlist'),
     path('api/wishlist/add/', add_to_wishlist, name='add_to_wishlist'),
     path('api/wishlist/remove/<int:product_id>/', remove_from_wishlist, name='remove_from_wishlist'),
+    path('api/cart/clear/', clear_cart, name='clear_cart'),
+    path('api/wishlist/clear/', clear_wishlist, name='clear_wishlist'),
     #order
    
     path('api/stripe/create-payment-intent/', CreatePaymentIntentView.as_view(), name='create-payment-intent'),
@@ -195,6 +246,7 @@ urlpatterns = [
     path('api/orders/create/', OrderCreateView.as_view(), name='order-create'),
     path('api/orders/update-payment/', UpdateOrderPaymentView.as_view(), name='order-update-payment'),
     path("api/orders/<int:order_id>/", UpdateOrderStatusView.as_view(), name="update-order-status"),
+    path('api/send-booking-email/', views.send_booking_email, name='send_booking_email'),
     # Rent Verification
     path('api/rent-verification/', RentVerificationCreateView.as_view(), name='rent-verification-create'),
     path('api/rent-verification/<int:pk>/', RentVerificationAdminView.as_view(), name='rent-verification-admin'),
@@ -226,7 +278,8 @@ urlpatterns = [
     path('api/services/create/', views.create_service, name='create_service'),
     path('api/services/<int:service_id>/', views.update_service, name='update_service'),
     path('api/services/<int:service_id>/delete/', views.delete_service, name='delete_service'),
-    
+    path('api/safety-training-companies/', SafetyTrainingCompaniesView.as_view(), name='safety-training-companies'),
+    path('api/request-safety-training/<int:company_id>/', RequestSafetyTrainingView.as_view(), name='request-safety-training'),
 
     #subscription
     path('api/stripe/subscription-payment-intent/<int:company_id>/', SubscriptionPaymentIntentView.as_view(), name='subscription-payment-intent'),
@@ -238,8 +291,32 @@ urlpatterns = [
     path('api/revenue-analytics/', RevenueAnalyticsView.as_view(), name='revenue-analytics'),
     path('api/appointment-analytics/', AppointmentAnalyticsView.as_view(), name='appointment-analytics'),
     path('api/subscription-analytics/', views.SubscriptionAnalyticsView.as_view(), name='subscription-analytics'),
+    path('api/top-purchased-items/', TopPurchasedItemsView.as_view(), name='top-selling-items'),
     path('api/total-revenue/', views.TotalRevenueView.as_view(), name='total-revenue'),
-]
+    path("api/sse/notifications/", views.sse_notifications, name="sse_notifications"),
+    path("api/notifications/mark_read/", views.mark_notification_read, name="mark_notification_read"),
+    path('api/company-dashboard-stats/', CompanyDashboardStatsView.as_view(), name='company-dashboard-stats'),
+    #homepage
+    path('api/featured-companies/', FeaturedCompaniesView.as_view(), name='featured-companies'),
+    #chat`
+    # path('api/chat/create-channel/', CreateChatChannel.as_view(), name='create-chat-channel'),
+    # path('api/chat/messages/<str:channel_id>/', ChatMessageList.as_view(), name='chat-messages'),
+    # path('api/chat/channels/', ChatChannelList.as_view(), name='chat-channels'),
+    # path('api/user-info/', UserInfoView.as_view(), name='user-info'),
+    # path('api/chat/send-message/', SendMessage.as_view(), name='send-message'),
+    # path('api/chat/deactivate-channel/', DeactivateChatChannel.as_view(), name='deactivate-channel'),
+    # #admin
+    # path('api/admins/', AdminList.as_view(), name='admin-list'),
+    
+    #forfilter
+    path('company-service-category-list/', CompanyServiceCategoryListView.as_view(), name='company-service-category-list'),
+    #delete
+    path('api/permanent-delete-account/', permanent_delete_account, name='permanent_delete_account'),
+    path('api/verify-password/', verify_password, name='verify_password'),
+
+
+    
+]  
 # Serve media files during development 
 if settings.DEBUG:  
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

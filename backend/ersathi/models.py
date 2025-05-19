@@ -3,7 +3,9 @@ from django.db import models
 import uuid
 from django.contrib.auth.models import AbstractUser
 from django.forms import ValidationError
+from django.conf import settings
 
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 
@@ -11,16 +13,17 @@ from django.forms import ValidationError
 COMPANY_TYPE_CHOICES = [
     ('construction', 'Construction Company'),
     ('supplier', 'Material Supplier'),
-    ('service', 'Service Provider'),
+    # ('service', 'Service Provider'),
 ]
 
 
 # Company Registration Model
 class Company(models.Model):
+    customuser = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="associated_company", null=True, blank=True)
     company_type = models.CharField(max_length=50, choices=COMPANY_TYPE_CHOICES)
     company_name = models.CharField(max_length=255)
     company_email = models.EmailField(unique=True)
-    company_registration_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    registration_certificate = models.FileField(upload_to='company_certificates/', null=True, blank=True)
     location = models.CharField(max_length=255)
     services_provided = models.JSONField(default=list, blank=True)
     is_approved = models.BooleanField(default=False)
@@ -35,6 +38,11 @@ class Company(models.Model):
         choices=[("pending", "Pending"), ("verified", "Verified"), ("restricted", "Restricted")],
         default="pending"
     )
+    def average_rating(self):
+        ratings = self.ratings.all()
+        if ratings.exists():
+            return round(sum(rating.rating for rating in ratings) / ratings.count(), 1)
+        return 0.0
     def __str__(self):
         return self.company_name
 
@@ -75,15 +83,27 @@ class CompanyServices(models.Model):
 class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=10, blank=True, null=True)
     is_verified = models.BooleanField(default=False)  # Field to track email verification
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, blank = True, null= True) #if company delet, the user will delete
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, blank = True, null= True, related_name="company_users") #if company delet, the user will delete
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)  # Store Stripe Customer ID  NEW
+    address = models.TextField(blank=True, null=True)  # Add address field
     class Meta:
         verbose_name = "Custom User"
         verbose_name_plural = "Custom Users"
 
     def __str__(self):
         return self.username
-    
+#rating
+class CompanyRating(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="ratings")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.FloatField(validators=[MinValueValidator(1.0), MaxValueValidator(5.0)])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('company', 'user')  # Ensures a user can only rate a company once
+
+    def __str__(self):
+        return f"{self.user} rated {self.company} - {self.rating}"  
 
 #product model
 from django.db import models
@@ -96,8 +116,21 @@ class Product(models.Model):
     image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Discount percentage
     company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='products', null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
     is_available = models.BooleanField(default=True)
+    stock = models.PositiveIntegerField(default=0)  # New field for stock quantity
+    threshold =models.PositiveIntegerField(default=2)
+    rating = models.FloatField(default=0.0)  # New field for average rating
+    num_reviews = models.PositiveIntegerField(default=0)  # New field for number of reviews
     created_at = models.DateTimeField(auto_now_add=True)
+    
+
+
+    def save(self, *args, **kwargs):
+        """Automatically set the location from the associated company."""
+        if self.company:
+            self.location = self.company.location
+        super().save(*args, **kwargs)
 
     def final_rent_price(self):
         """Calculate the final rent price after applying discount."""
@@ -108,6 +141,26 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# models.py
+class Rating(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='ratings')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.FloatField()  # Rating value (e.g., 1 to 5)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'user')  # Ensure a user can rate a product only once
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update product's average rating and num_reviews
+        product = self.product
+        ratings = product.ratings.all()
+        product.num_reviews = ratings.count()
+        product.rating = sum(r.rating for r in ratings) / product.num_reviews if product.num_reviews > 0 else 0.0
+        product.save()
 
 #####################
 ##COMPANY_INFO####
@@ -132,7 +185,7 @@ class CompanyInfo(models.Model):
     )
     
     # Rest of your existing fields remain the same
-    company_name = models.CharField(max_length=255)
+    company_name = models.CharField(max_length=255) 
     company_email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     address = models.CharField(max_length=255)
@@ -300,7 +353,17 @@ class EngineeringConsultingData(ServiceFormData):
     hvac_plan = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
     construction_permit = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
     cost_estimation = models.FileField(upload_to='inquiry_files/engineering/', blank=True, null=True)
+    structural_design = models.FileField(upload_to='inquiry_files/engineering/structural/', blank=True, null=True)
+    structural_report = models.FileField(upload_to='inquiry_files/engineering/structural/', blank=True, null=True)
+    architectural_design = models.FileField(upload_to='inquiry_files/engineering/architectural/', blank=True, null=True)
+    cost_estimation_files = models.FileField(upload_to='inquiry_files/engineering/cost_estimation/', blank=True, null=True)
+    rate_analysis = models.FileField(upload_to='inquiry_files/engineering/rate_analysis/', blank=True, null=True)
+    class Meta:
+        verbose_name = "Engineering Consulting Data"
+        verbose_name_plural = "Engineering Consulting Data"
 
+    def __str__(self):
+        return f"Engineering Data for Inquiry #{self.inquiry.id}"
 
 class BuildingConstructionData(ServiceFormData):
     inquiry = models.OneToOneField(Inquiry, on_delete=models.CASCADE, related_name='building_data')
@@ -348,7 +411,14 @@ class BuildingConstructionData(ServiceFormData):
     construction_phase = models.CharField(max_length=50, choices=[
         ('Foundation', 'Foundation'),
         ('Walls', 'Walls'),
-        ('Roof', 'Roof'),
+        ('Finishing', 'Finishing'),
+        ('Excavation', 'Excavation '),
+        ('Columns Casting', 'Columns Casting'),
+        ('Beams Casting', 'Beams Casting'),
+        ('Slab Casting', 'Slab Casting'),
+        ('Roofing', 'Roofing'),
+        ('Electrical & Plumbing', 'Electrical & Plumbing'),
+        ('Plastering', 'Plastering'),
         ('Finishing', 'Finishing'),
     ], blank=True, null=True)
     progress_percentage = models.PositiveIntegerField(blank=True, null=True)
@@ -379,26 +449,6 @@ class SafetyTrainingData(ServiceFormData):
     training_time = models.CharField(max_length=50, blank=True, null=True)
     training_agreement = models.BooleanField(default=False)
 
-
-
-
-# Signal to send WebSocket notification on new inquiry
-from django.dispatch import receiver
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-from django.db.models.signals import post_save
-@receiver(post_save, sender=Inquiry)
-def send_inquiry_notification(sender, instance, created, **kwargs):
-    if created:
-        company = instance.company
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'company_{company.id}_inquiries',
-            {
-                'type': 'inquiry_update',
-                'message': 'New inquiry received'
-            }
-        )
 
 
 
@@ -663,3 +713,48 @@ class Plan(models.Model):
 
     class Meta:
         ordering = ['days']
+
+
+from django.db import models
+from django.conf import settings
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    type = models.CharField(max_length=50)  # e.g., "inquiry_new", "order_status"
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["recipient", "created_at"])]
+
+    def __str__(self):
+        return f"Notification for {self.recipient.username}: {self.message}"
+
+
+
+
+from django.db import models
+from django.core.validators import MinValueValidator
+
+class Payment(models.Model):
+    inquiry = models.ForeignKey(
+        'Inquiry',  # Adjust to your Inquiry model name
+        on_delete=models.CASCADE,
+        related_name='payments'
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    payment_method = models.CharField(max_length=50)  # e.g., 'stripe'
+    purpose = models.CharField(max_length=255, blank=True, null=True)  # New field for payment purpose
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Payment for Inquiry {self.inquiry.id}"
