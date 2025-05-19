@@ -7,6 +7,8 @@ from django.conf import settings
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+
+
 # Define company type choices
 COMPANY_TYPE_CHOICES = [
     ('construction', 'Construction Company'),
@@ -117,10 +119,12 @@ class Product(models.Model):
     location = models.CharField(max_length=255, null=True, blank=True)
     is_available = models.BooleanField(default=True)
     stock = models.PositiveIntegerField(default=0)  # New field for stock quantity
+    threshold =models.PositiveIntegerField(default=2)
     rating = models.FloatField(default=0.0)  # New field for average rating
     num_reviews = models.PositiveIntegerField(default=0)  # New field for number of reviews
     created_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    
+
 
     def save(self, *args, **kwargs):
         """Automatically set the location from the associated company."""
@@ -728,73 +732,6 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.recipient.username}: {self.message}"
 
-#chat
-# class ChatChannel(models.Model):
-#     CHANNEL_TYPES = [
-#         ('user_company', 'User-Company'),
-#         ('user_admin', 'User-Admin'),
-#         ('company_admin', 'Company-Admin'),
-#     ]
-    
-#     channel_id = models.CharField(max_length=255, unique=True)
-#     channel_type = models.CharField(max_length=20, choices=CHANNEL_TYPES)
-#     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_channels', null=True, blank=True)
-#     company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='chat_channels', null=True, blank=True)
-#     admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='admin_chat_channels', null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     is_active = models.BooleanField(default=True)
-
-#     def __str__(self):
-#         return f"Channel {self.channel_id} ({self.channel_type})"
-
-
-
-# class ChatMessage(models.Model):
-#     channel = models.ForeignKey(ChatChannel, on_delete=models.CASCADE, related_name='messages')
-#     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-#     message = models.TextField()
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"Message by {self.sender.username} in {self.channel.channel_id}"
-
-
-
-# models.py
-class Chat(models.Model):
-    inquiry = models.ForeignKey(Inquiry, on_delete=models.SET_NULL, null=True, blank=True)
-    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
-    platform_admin_involved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('inquiry', 'order')
-
-    def __str__(self):
-        if self.inquiry:
-            return f"Chat for Inquiry #{self.inquiry.id}"
-        if self.order:
-            return f"Chat for Order #{self.order.id}"
-        return f"General Chat #{self.id}"
-
-class Message(models.Model):
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
-    sender_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    sender_company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
-
-    def save(self, *args, **kwargs):
-        if not (self.sender_user or self.sender_company):
-            raise ValidationError("Message must have a sender")
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Message in {self.chat} at {self.timestamp}"
 
 
 

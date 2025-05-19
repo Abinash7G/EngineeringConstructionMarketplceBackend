@@ -754,54 +754,6 @@ class RatingSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'created_at']
 
 
-
-
-
-
-
-
-
-
-
-
-
-# serializers.py
-from rest_framework import serializers
-from .models import Chat, Message
-from django.db.models import Q 
-class ChatSerializer(serializers.ModelSerializer):
-    last_message = serializers.SerializerMethodField()
-    unread_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Chat
-        fields = ['id', 'inquiry', 'order', 'user', 'company', 'platform_admin_involved', 
-                 'created_at', 'updated_at', 'last_message', 'unread_count']
-
-    def get_last_message(self, obj):
-        last_message = obj.messages.order_by('-timestamp').first()
-        return MessageSerializer(last_message).data if last_message else None
-
-    def get_unread_count(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.messages.exclude(
-                Q(sender_user=request.user) | Q(sender_company=request.user.company)
-            ).filter(is_read=False).count()
-        return 0
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender_type = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Message
-        fields = ['id', 'chat', 'sender_user', 'sender_company', 'content', 
-                 'timestamp', 'is_read', 'sender_type']
-
-    def get_sender_type(self, obj):
-        if obj.sender_user:
-            return 'admin' if obj.sender_user.is_superuser else 'user'
-        return 'company'
     
 
 from rest_framework import serializers

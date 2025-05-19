@@ -844,15 +844,156 @@ def dashboard_stats(request):
 #             return Response(serializer.data, status=201)
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=500)
+# # today
+# from decimal import Decimal
+# from rest_framework.views import APIView
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+# from .models import Product
+# from django.shortcuts import get_object_or_404
+# class Test(APIView):
+#     permission_classes = [IsAuthenticated]  
+#     def get(self, request):
+#         company_id = request.query_params.get('company_id')
+#         if not company_id:
+#             return Response({"error": "Company ID is required."}, status=400)
 
+#         try:
+#             company_id = int(company_id)  # Ensure it's an integer
+#             products = Product.objects.filter(company_id=company_id)
+#             # Serialize the data (you may need a serializer like ProductSerializer)
+#             data = [{
+#                 'id': product.id,
+#                 'title': product.title,
+#                 'description': product.description,
+#                 'price': str(product.price),  # Convert Decimal to string for JSON
+#                 'category': product.category,
+#                 'perDayRent': str(product.per_day_rent) if product.per_day_rent else None,
+#                 'discountPercentage': str(product.discount_percentage) if product.discount_percentage else None,
+#                 'company': product.company_id,
+#                 'location': product.location,
+#                 'isAvailable': product.is_available,
+#                 'stock': product.stock,
+#                 'threshold': product.threshold,
+#                 'createdAt': product.created_at.isoformat(),
+#             } for product in products]
+#             return Response(data, status=200)
+#         except ValueError:
+#             return Response({"error": "Invalid company ID format."}, status=400)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+#     def post(self, request):
+#         user = request.user
+
+#         # 1) Check if user has a company
+#         company = getattr(user, "company", None)
+#         if company is None:
+#             return Response({"error": "This user has no associated company."}, status=400)
+
+#         # 2) Read category from request instead of forcing it
+#         data = request.data
+#         category = data.get("category", "").lower()  # Ensure lowercase consistency
+
+#         # 3) Validate category
+#         if category not in ["selling", "renting"]:
+#             return Response({"error": "Invalid category. Must be 'Selling' or 'Renting'."}, status=400)
+
+#         # 4) Read the uploaded file (if any)
+#         image_file = request.FILES.get("image")
+
+#         # 5) Convert 'discountPercentage' to Decimal (handle empty case)
+#         discount_value = Decimal(data.get("discountPercentage", "0"))  # Default to 0
+
+#         # 6) Convert 'isAvailable' string to boolean
+#         is_available = data.get("isAvailable", "false").lower() == "true"
+
+#         stock = int(data.get("stock", 0))  # Handle stock field
+#         # 7) Handle per_day_rent properly
+#         per_day_rent = None
+#         if category == "renting":
+#             try:
+#                 per_day_rent = Decimal(data.get("perDayRent", "0"))  # Default to 0 if missing
+#             except:
+#                 return Response({"error": "Invalid perDayRent value."}, status=400)
+        
+
+#         # 8) Create the new product
+#         product = Product.objects.create(
+#             title=data["title"],
+#             description=data["description"],
+#             price=Decimal(data["price"]),
+#             category=category,
+#             per_day_rent=per_day_rent,  # Allow NULL for "Selling"
+#             discount_percentage=discount_value,
+#             image=image_file,  # Handle file
+#             company=company,
+#             is_available=is_available,
+#             stock=stock,  # Save stock
+#             threshold=threshold, 
+#         )
+
+#         return Response({"message": "Product created successfully", "id": product.id}, status=201)
+
+#     def put(self, request, pk):
+#         # Handle updating an existing product (similar logic to POST, but update instead of create)
+#         product = get_object_or_404(Product, pk=pk)
+#         if product.company_id != request.user.company_id:
+#             return Response({"error": "You can only edit products belonging to your company."}, status=403)
+
+#         data = request.data
+#         category = data.get("category", "").lower()
+
+#         if category not in ["selling", "renting"]:
+#             return Response({"error": "Invalid category. Must be 'Selling' or 'Renting'."}, status=400)
+
+#         image_file = request.FILES.get("image")
+
+#         discount_value = Decimal(data.get("discountPercentage", "0"))
+#         is_available = data.get("isAvailable", "false").lower() == "true"
+
+#         per_day_rent = None
+#         if category == "renting":
+#             try:
+#                 per_day_rent = Decimal(data.get("perDayRent", "0"))
+#             except:
+#                 return Response({"error": "Invalid perDayRent value."}, status=400)
+#         stock = int(data.get("stock", 0))  # Handle stock field
+#         product.title = data["title"]
+#         product.description = data["description"]
+#         product.price = Decimal(data["price"])
+#         product.category = category
+#         product.per_day_rent = per_day_rent
+#         product.discount_percentage = discount_value
+#         product.is_available = is_available
+#         product.stock = stock  # Update stock
+#         threshold=threshold
+
+#         if image_file:
+#             product.image = image_file
+
+#         product.save()
+#         return Response({"message": "Product updated successfully"}, status=200)
+
+#     def delete(self, request, pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         if product.company_id != request.user.company_id:
+#             return Response({"error": "You can only delete products belonging to your company."}, status=403)
+
+#         product.delete()
+#         return Response({"message": "Product deleted successfully"}, status=204)
+            
+# views.py
 from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Product
+from .serializers import ProductSerializer
 from django.shortcuts import get_object_or_404
+
 class Test(APIView):
-    permission_classes = [IsAuthenticated]  
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         company_id = request.query_params.get('company_id')
         if not company_id:
@@ -861,79 +1002,69 @@ class Test(APIView):
         try:
             company_id = int(company_id)  # Ensure it's an integer
             products = Product.objects.filter(company_id=company_id)
-            # Serialize the data (you may need a serializer like ProductSerializer)
-            data = [{
-                'id': product.id,
-                'title': product.title,
-                'description': product.description,
-                'price': str(product.price),  # Convert Decimal to string for JSON
-                'category': product.category,
-                'perDayRent': str(product.per_day_rent) if product.per_day_rent else None,
-                'discountPercentage': str(product.discount_percentage) if product.discount_percentage else None,
-                'company': product.company_id,
-                'location': product.location,
-                'isAvailable': product.is_available,
-                'stock': product.stock,
-                'createdAt': product.created_at.isoformat(),
-            } for product in products]
-            return Response(data, status=200)
+            serializer = ProductSerializer(products, many=True, context={'request': request})
+            return Response(serializer.data, status=200)
         except ValueError:
             return Response({"error": "Invalid company ID format."}, status=400)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
     def post(self, request):
         user = request.user
 
-        # 1) Check if user has a company
+        # Check if user has a company
         company = getattr(user, "company", None)
         if company is None:
             return Response({"error": "This user has no associated company."}, status=400)
 
-        # 2) Read category from request instead of forcing it
+        # Read category from request
         data = request.data
-        category = data.get("category", "").lower()  # Ensure lowercase consistency
+        category = data.get("category", "").lower()
 
-        # 3) Validate category
+        # Validate category
         if category not in ["selling", "renting"]:
             return Response({"error": "Invalid category. Must be 'Selling' or 'Renting'."}, status=400)
 
-        # 4) Read the uploaded file (if any)
+        # Read the uploaded file (if any)
         image_file = request.FILES.get("image")
 
-        # 5) Convert 'discountPercentage' to Decimal (handle empty case)
-        discount_value = Decimal(data.get("discountPercentage", "0"))  # Default to 0
+        # Convert 'discountPercentage' to Decimal (handle empty case)
+        discount_value = Decimal(data.get("discountPercentage", "0"))
 
-        # 6) Convert 'isAvailable' string to boolean
+        # Convert 'isAvailable' string to boolean
         is_available = data.get("isAvailable", "false").lower() == "true"
 
-        stock = int(data.get("stock", 0))  # Handle stock field
-        # 7) Handle per_day_rent properly
+        # Handle stock and threshold fields
+        stock = int(data.get("stock", 0))
+        threshold = int(data.get("threshold", 2))  # Default to 2 if not provided
+
+        # Handle per_day_rent properly
         per_day_rent = None
         if category == "renting":
             try:
-                per_day_rent = Decimal(data.get("perDayRent", "0"))  # Default to 0 if missing
+                per_day_rent = Decimal(data.get("perDayRent", "0"))
             except:
                 return Response({"error": "Invalid perDayRent value."}, status=400)
-        
 
-        # 8) Create the new product
+        # Create the new product
         product = Product.objects.create(
             title=data["title"],
             description=data["description"],
             price=Decimal(data["price"]),
             category=category,
-            per_day_rent=per_day_rent,  # Allow NULL for "Selling"
+            per_day_rent=per_day_rent,
             discount_percentage=discount_value,
-            image=image_file,  # Handle file
+            image=image_file,
             company=company,
             is_available=is_available,
-            stock=stock,  # Save stock
+            stock=stock,
+            threshold=threshold,  # Save the threshold
         )
 
         return Response({"message": "Product created successfully", "id": product.id}, status=201)
 
     def put(self, request, pk):
-        # Handle updating an existing product (similar logic to POST, but update instead of create)
+        # Handle updating an existing product
         product = get_object_or_404(Product, pk=pk)
         if product.company_id != request.user.company_id:
             return Response({"error": "You can only edit products belonging to your company."}, status=403)
@@ -955,7 +1086,11 @@ class Test(APIView):
                 per_day_rent = Decimal(data.get("perDayRent", "0"))
             except:
                 return Response({"error": "Invalid perDayRent value."}, status=400)
-        stock = int(data.get("stock", 0))  # Handle stock field
+
+        stock = int(data.get("stock", 0))
+        threshold = int(data.get("threshold", 2))  # Default to 2 if not provided
+
+        # Update the product fields
         product.title = data["title"]
         product.description = data["description"]
         product.price = Decimal(data["price"])
@@ -963,8 +1098,8 @@ class Test(APIView):
         product.per_day_rent = per_day_rent
         product.discount_percentage = discount_value
         product.is_available = is_available
-        product.stock = stock  # Update stock
-
+        product.stock = stock
+        product.threshold = threshold  # Update the threshold
 
         if image_file:
             product.image = image_file
@@ -979,7 +1114,9 @@ class Test(APIView):
 
         product.delete()
         return Response({"message": "Product deleted successfully"}, status=204)
-            
+
+
+
 # ########
 # ##RentVerification view
 # #########        
@@ -3178,14 +3315,152 @@ class UpdateAppointmentStatusView(APIView):
 
 #appointment
 
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from django.shortcuts import get_object_or_404
+# from rest_framework import status
+# import logging
+
+# logger = logging.getLogger(__name__)
+
+# class UpdateAppointmentView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def patch(self, request, appointment_id):
+#         try:
+#             appointment = get_object_or_404(Appointment, id=appointment_id, company=request.user.company)
+#             new_date = request.data.get('appointment_date')
+#             new_status = request.data.get('status')
+#             if new_date:
+#                 appointment.appointment_date = new_date
+#             if new_status:
+#                 valid_statuses = [choice[0] for choice in Appointment._meta.get_field('status').choices]
+#                 if new_status not in valid_statuses:
+#                     return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+#                 appointment.status = new_status
+#             appointment.save()
+#             return Response({"message": "Appointment updated"}, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             logger.error(f"Error in UpdateAppointmentView: {str(e)}")
+#             return Response({"error": "Failed to update appointment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# class DeleteAppointmentView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def delete(self, request, appointment_id):
+#         try:
+#             appointment = get_object_or_404(Appointment, id=appointment_id, company=request.user.company)
+#             inquiry = appointment.inquiry
+#             appointment.delete()
+#             inquiry.status = 'Pending'  # Reset inquiry status
+#             inquiry.save()
+#             return Response({"message": "Appointment deleted"}, status=status.HTTP_204_NO_CONTENT)
+#         except Exception as e:
+#             logger.error(f"Error in DeleteAppointmentView: {str(e)}")
+#             return Response({"error": "Failed to delete appointment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# appointment
+# appointment
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 import logging
+from .models import Appointment, Inquiry
+from django.utils import timezone  # For timezone-aware datetime handling
+from django.db import IntegrityError  # To handle unique constraint violations
 
 logger = logging.getLogger(__name__)
+
+class CreateAppointmentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Extract data from request
+            inquiry_id = request.data.get('inquiry_id')
+            appointment_date = request.data.get('appointment_date')
+            appointment_status = request.data.get('status', 'Pending')  # Renamed to avoid conflict with 'status' module
+
+            # Validate required fields
+            if not inquiry_id or not appointment_date:
+                return Response(
+                    {"error": "Inquiry ID and appointment date are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Fetch the inquiry and ensure it belongs to the company
+            inquiry = get_object_or_404(Inquiry, id=inquiry_id, company=request.user.company)
+
+            # Validate status if provided
+            valid_statuses = [choice[0] for choice in Appointment._meta.get_field('status').choices]
+            if appointment_status not in valid_statuses:
+                return Response(
+                    {"error": "Invalid status"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Make appointment_date timezone-aware
+            if appointment_date:
+                naive_datetime = timezone.datetime.fromisoformat(appointment_date.replace('Z', '+00:00'))
+                if timezone.is_naive(naive_datetime):
+                    appointment_date = timezone.make_aware(naive_datetime)
+
+            # Check if an appointment already exists for this inquiry
+            if Appointment.objects.filter(inquiry=inquiry).exists():
+                return Response(
+                    {"error": "An appointment for this inquiry already exists"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the appointment
+            appointment = Appointment.objects.create(
+                inquiry=inquiry,
+                company=request.user.company,
+                appointment_date=appointment_date,
+                status=appointment_status
+            )
+
+            # Update inquiry status if needed (e.g., set to 'Scheduled')
+            inquiry.status = 'Scheduled'
+            inquiry.save()
+
+            return Response(
+                {
+                    "message": "Appointment created successfully",
+                    "appointment": {
+                        "id": appointment.id,
+                        "inquiry": {
+                            "id": inquiry.id,
+                            "full_name": inquiry.full_name,
+                            "sub_service": inquiry.sub_service,
+                            "location": inquiry.location,
+                            "email": inquiry.email,
+                            "phone_number": inquiry.phone_number
+                        },
+                        "appointment_date": appointment.appointment_date,
+                        "status": appointment.status
+                    }
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        except IntegrityError as e:
+            logger.error(f"IntegrityError in CreateAppointmentView: {str(e)}")
+            return Response(
+                {"error": "An appointment for this inquiry already exists"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error in CreateAppointmentView: {str(e)}")
+            return Response(
+                {"error": "Failed to create appointment"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR  # Fixed: Correct usage of status
+            )
 
 class UpdateAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -3195,13 +3470,20 @@ class UpdateAppointmentView(APIView):
             appointment = get_object_or_404(Appointment, id=appointment_id, company=request.user.company)
             new_date = request.data.get('appointment_date')
             new_status = request.data.get('status')
+            
             if new_date:
+                # Ensure timezone-aware datetime
+                naive_datetime = timezone.datetime.fromisoformat(new_date.replace('Z', '+00:00'))
+                if timezone.is_naive(naive_datetime):
+                    new_date = timezone.make_aware(naive_datetime)
                 appointment.appointment_date = new_date
+            
             if new_status:
                 valid_statuses = [choice[0] for choice in Appointment._meta.get_field('status').choices]
                 if new_status not in valid_statuses:
                     return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
                 appointment.status = new_status
+            
             appointment.save()
             return Response({"message": "Appointment updated"}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -3222,11 +3504,6 @@ class DeleteAppointmentView(APIView):
         except Exception as e:
             logger.error(f"Error in DeleteAppointmentView: {str(e)}")
             return Response({"error": "Failed to delete appointment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
 
 
 
@@ -5115,7 +5392,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Company
 from .serializers import FeaturedCompanySerializer
-
 class FeaturedCompaniesView(APIView):
     def get(self, request):
         # Fetch approved companies, ordered by average rating (descending), limit to top 3
@@ -5125,90 +5401,6 @@ class FeaturedCompaniesView(APIView):
         serializer = FeaturedCompanySerializer(companies, many=True)
         return Response(serializer.data)
 
-
-# views.py
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from .models import Chat, Message
-from .serializers import ChatSerializer, MessageSerializer
-from agora_token_builder import RtmTokenBuilder
-import time
-
-class ChatListView(APIView):
-    def get(self, request):
-        user = request.user
-        chats = Chat.objects.none()
-        
-        if user.is_superuser:
-            chats = Chat.objects.all()
-        elif user.company:
-            chats = Chat.objects.filter(
-                Q(company=user.company) | Q(platform_admin_involved=True)
-            )
-        else:
-            chats = Chat.objects.filter(
-                Q(user=user) | Q(platform_admin_involved=True)
-            )
-            
-        serializer = ChatSerializer(chats, many=True, context={'request': request})
-        return Response(serializer.data)
-
-class MessageView(APIView):
-    def get(self, request, chat_id):
-        chat = get_object_or_404(Chat, id=chat_id)
-        self.check_permissions(request, chat)
-        
-        messages = chat.messages.all().order_by('timestamp')
-        serializer = MessageSerializer(messages, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, chat_id):
-        chat = get_object_or_404(Chat, id=chat_id)
-        self.check_permissions(request, chat)
-        
-        serializer = MessageSerializer(data=request.data)
-        if serializer.is_valid():
-            message = serializer.save(chat=chat)
-            self.set_sender(request, message)
-            return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def check_permissions(self, request, chat):
-        user = request.user
-        if not (user.is_superuser or 
-               (user.company and chat.company == user.company) or 
-               (not user.company and chat.user == user)):
-            self.permission_denied(request)
-
-    def set_sender(self, request, message):
-        if request.user.is_superuser:
-            message.sender_user = request.user
-        elif request.user.company:
-            message.sender_company = request.user.company
-        else:
-            message.sender_user = request.user
-        message.save()
-
-class AgoraTokenView(APIView):
-    def get(self, request):
-        user_id = str(request.user.id)
-        expiration_time = 3600
-        current_time = int(time.time())
-        privilege_expired_ts = current_time + expiration_time
-        
-        token = RtmTokenBuilder.buildToken(
-            settings.AGORA_APP_ID,
-            settings.AGORA_APP_CERTIFICATE,
-            user_id,
-            privilege_expired_ts
-        )
-        return Response({
-            'token': token,
-            'app_id': settings.AGORA_APP_ID,
-            'user_id': user_id
-        })
 
 
 
@@ -5518,3 +5710,7 @@ class CompanyDashboardStatsView(APIView):
         except Exception as e:
             logger.error(f"Error fetching company dashboard stats: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+

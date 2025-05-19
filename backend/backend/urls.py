@@ -114,6 +114,7 @@ from ersathi.views import (
     get_wishlist,
     add_to_wishlist,
     remove_from_wishlist,
+    CreateAppointmentView,
 #     CreateChatChannel,
 #     ChatMessageList,
 #    ChatChannelList,
@@ -121,9 +122,9 @@ from ersathi.views import (
 #    DeactivateChatChannel,
 #    SendMessage,
 #    AdminList,
-    AgoraTokenView,
-    ChatListView,
-    MessageView,
+    # AgoraTokenView,
+    # ChatListView,
+    # MessageView,
     verify_password,
     
    
@@ -190,9 +191,11 @@ urlpatterns = [
     # path('mark-inquiries-checked/', MarkInquiriesCheckedView.as_view(), name='mark-inquiries-checked'),
     # path('check-new-company-inquiries/', CheckNewInquiriesView.as_view(), name='check-new-inquiries'),
     # path('api/get-last-inquiry-check/', GetLastInquiryCheckView.as_view(), name='get-last-inquiry-check'),
+    
     path('appointments/<int:appointment_id>/update-status/', UpdateAppointmentStatusView.as_view(), name='update-appointment-status'),
     path('api/appointments/<int:appointment_id>/update/', UpdateAppointmentView.as_view(), name='update-appointment'),
     path('api/appointments/<int:appointment_id>/delete/', DeleteAppointmentView.as_view(), name='delete-appointment'),
+    path('api/appointments/create/', CreateAppointmentView.as_view(), name='create-appointment'),
    # path('api/submit-inquiry/<int:company_id>/', SubmitInquiryView.as_view(), name='submit-inquiry'),
    # path('api/company-inquiries/', CompanyInquiriesView.as_view(), name='company-inquiries'),
    #aggrement
@@ -304,9 +307,7 @@ urlpatterns = [
     # path('api/chat/deactivate-channel/', DeactivateChatChannel.as_view(), name='deactivate-channel'),
     # #admin
     # path('api/admins/', AdminList.as_view(), name='admin-list'),
-    path('chats/', ChatListView.as_view()),
-    path('chats/<int:chat_id>/messages/', MessageView.as_view()),
-    path('agora-token/', AgoraTokenView.as_view()),
+    
     #forfilter
     path('company-service-category-list/', CompanyServiceCategoryListView.as_view(), name='company-service-category-list'),
     #delete
