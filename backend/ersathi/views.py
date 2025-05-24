@@ -1104,7 +1104,7 @@ User = get_user_model()
 def get_cart(request):
     user = request.user
     cart_items = Cart.objects.filter(user=user)
-    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'quantity': item.quantity, 'company': item.product.company.id } for item in cart_items]
+    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'quantity': item.quantity, 'company': item.product.company.id, 'discount': item.product.discount_percentage } for item in cart_items]
     return Response(data)
 
 @api_view(['POST'])
@@ -1135,7 +1135,7 @@ def remove_from_cart(request, product_id):
 def get_wishlist(request):
     user = request.user
     wishlist_items = Wishlist.objects.filter(user=user)
-    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'company': item.product.company.id } for item in wishlist_items]
+    data = [{'image':item.product.image.url, 'company_name': item.product.company.company_name, 'location':item.product.location, 'category':item.product.category, 'product_id': item.product.id, 'name': item.product.title, 'price': str(item.product.price), 'company': item.product.company.id, 'discount': item.product.discount_percentage } for item in wishlist_items]
     return Response(data)
 
 @api_view(['POST'])
@@ -4882,3 +4882,21 @@ class SendResponseEmail(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+class SupportRequestDeleteView(generics.DestroyAPIView):
+    queryset = SupportRequest.objects.all()
+    serializer_class = SupportRequestSerializer
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response({"detail": "Support request deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+class ComplaintDeleteView(generics.DestroyAPIView):
+    queryset = Complaint.objects.all()
+    serializer_class = ComplaintSerializer
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response({"detail": "Complaint deleted successfully"}, status=status.HTTP_204_NO_CONTENT)

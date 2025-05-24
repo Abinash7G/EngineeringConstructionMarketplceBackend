@@ -136,7 +136,9 @@ from ersathi.views import (
     SupportRequestList,
     ComplaintList,
     SendResponseEmail,
-    SupportRequestDeleteView
+    SupportRequestDeleteView,
+    ComplaintDeleteView,
+
    
 )
 
@@ -298,7 +300,8 @@ urlpatterns = [
     path('api/support-requests/', SupportRequestList.as_view(), name='support-request-list'),
     path('api/complaints-list/', ComplaintList.as_view(), name='complaint-list'),
     path('api/send-response-email/', SendResponseEmail.as_view(), name='send-response-email'),
-    
+    path('api/support-requests/<int:pk>/', SupportRequestDeleteView.as_view(), name='support-request-delete'),
+    path('api/complaints-list/<int:pk>/', ComplaintDeleteView.as_view(), name='complaint-delete'),
 
 
 
