@@ -147,7 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # 'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -259,3 +259,6 @@ LOGGING = {
         },
     },
 }
+
+REQUIRE_AUTH_FOR_SUPPORT = False  # True = only logged-in users; False = anyone can submit
+REQUIRE_AUTH_FOR_COMPLAINTS = True

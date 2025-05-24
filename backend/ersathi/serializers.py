@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import BuildingConstructionData, EngineeringConsultingData, PostConstructionMaintenanceData, SafetyTrainingData, Service, Company, Product, ServiceCategory, CustomUser
 
@@ -26,6 +27,7 @@ class CompanyRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
+
 
 
 
@@ -692,11 +694,20 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'plan', 'amount', 'start_date', 'end_date', 'trial_end_date', 'grace_end_date', 'is_active', 'payment_data', 'has_used_trial']
 
 from .models import Plan
+# class PlanSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Plan
+#         fields = ['name', 'price', 'duration', 'days']
 class PlanSerializer(serializers.ModelSerializer):
+    price = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        coerce_to_string=False  # Ensure numeric value
+    )
+    
     class Meta:
         model = Plan
-        fields = ['name', 'price', 'duration', 'days']
-
+        fields = ['id', 'name', 'price', 'duration', 'days']
 
 
 
@@ -767,3 +778,137 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = ['id', 'inquiry_id', 'amount', 'payment_method', 'purpose', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+# # # serializers.py
+# # from rest_framework import serializers
+# # from .models import SupportRequest, Complaint
+# # from django.conf import settings
+
+# # class SupportRequestSerializer(serializers.ModelSerializer):
+# #     class Meta:
+# #         model = SupportRequest
+# #         fields = ['name', 'email', 'subject', 'message']
+
+# #     def validate(self, data):
+# #         # If the user is not authenticated and REQUIRE_AUTH_FOR_SUPPORT is False,
+# #         # ensure name and email are provided
+# #         request = self.context.get('request')
+# #         if not request.user.is_authenticated and not settings.REQUIRE_AUTH_FOR_SUPPORT:
+# #             if not data.get('name'):
+# #                 raise serializers.ValidationError({"name": "Name is required for anonymous submissions."})
+# #             if not data.get('email'):
+# #                 raise serializers.ValidationError({"email": "Email is required for anonymous submissions."})
+# #         return data
+
+# # class ComplaintSerializer(serializers.ModelSerializer):
+# #     class Meta:
+# #         model = Complaint
+# #         fields = ['subject', 'category', 'description']
+# # ersathi/serializers.py
+# from rest_framework import serializers
+# from .models import SupportRequest, Complaint
+# from django.conf import settings
+
+# class SupportRequestSerializer(serializers.ModelSerializer):
+#     user = serializers.StringRelatedField()  # Displays username or email of the user
+#     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+
+#     class Meta:
+#         model = SupportRequest
+#         fields = ['id', 'user', 'name', 'email', 'subject', 'message', 'created_at']
+#         read_only_fields = ['id', 'user', 'created_at']
+
+#     def validate(self, data):
+#         # Only apply validation for POST requests (creating new support requests)
+#         if self.context['request'].method == 'POST':
+#             request = self.context.get('request')
+#             if not request.user.is_authenticated and not settings.REQUIRE_AUTH_FOR_SUPPORT:
+#                 if not data.get('name'):
+#                     raise serializers.ValidationError({"name": "Name is required for anonymous submissions."})
+#                 if not data.get('email'):
+#                     raise serializers.ValidationError({"email": "Email is required for anonymous submissions."})
+#         return data
+
+# # class ComplaintSerializer(serializers.ModelSerializer):
+# #     user = serializers.StringRelatedField()
+# #     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
+
+# #     class Meta:
+# #         model = Complaint
+# #         fields = ['id', 'user', 'subject', 'category', 'description', 'created_at']
+# class ComplaintSerializer(serializers.ModelSerializer):
+#     user = serializers.StringRelatedField()
+#     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+
+#     class Meta:
+#         model = Complaint
+#         fields = ['id', 'user', 'email', 'subject', 'category', 'description', 'created_at']
+#         read_only_fields = ['id', 'user', 'created_at']
+#     def validate(self, data):
+#         if self.context['request'].method == 'POST':
+#             request = self.context.get('request')
+#             if not request.user.is_authenticated and not settings.REQUIRE_AUTH_FOR_COMPLAINTS:
+#                 if not data.get('email'):
+#                     raise serializers.ValidationError({"email": "Email is required for anonymous submissions."})
+#         return data
+
+#     def create(self, validated_data):
+#         # Store the email for anonymous users
+#         request = self.context.get('request')
+#         if not request.user.is_authenticated:
+#             validated_data['email'] = validated_data.get('email')
+#         return super().create(validated_data)
+from rest_framework import serializers
+from .models import SupportRequest, Complaint
+from django.conf import settings
+import re
+
+class SupportRequestSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+    created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)  # Explicitly set read_only
+
+    class Meta:
+        model = SupportRequest
+        fields = ['id', 'user', 'name', 'email', 'subject', 'message', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+
+    def validate(self, data):
+        if self.context['request'].method == 'POST':
+            request = self.context.get('request')
+            if not request.user.is_authenticated and not settings.REQUIRE_AUTH_FOR_SUPPORT:
+                if not data.get('name'):
+                    raise serializers.ValidationError({"name": "Name is required for anonymous submissions."})
+                if not data.get('email'):
+                    raise serializers.ValidationError({"email": "Email is required for anonymous submissions."})
+                email = data.get('email')
+                if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+                    raise serializers.ValidationError({"email": "Invalid email format."})
+        return data
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+    created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+
+    class Meta:
+        model = Complaint
+        fields = ['id', 'user', 'email', 'subject', 'category', 'description', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+
+    def validate(self, data):
+        if self.context['request'].method == 'POST':
+            request = self.context.get('request')
+            if not request.user.is_authenticated and not settings.REQUIRE_AUTH_FOR_COMPLAINTS:
+                if not data.get('email'):
+                    raise serializers.ValidationError({"email": "Email is required for anonymous submissions."})
+                # Validate email format
+                email = data.get('email')
+                if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+                    raise serializers.ValidationError({"email": "Invalid email format."})
+        return data
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if not request.user.is_authenticated:
+            validated_data['email'] = validated_data.get('email')
+        return super().create(validated_data)

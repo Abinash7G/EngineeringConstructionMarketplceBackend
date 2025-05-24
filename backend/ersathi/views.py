@@ -442,24 +442,66 @@ class ConfirmEmailView(APIView):
 
 
 
-#LOGIN LOGIC
+# #LOGIN LOGIC
+# from rest_framework_simplejwt.tokens import RefreshToken
+
+# class LoginView(APIView):
+#     def post(self, request, *args, **kwargs):
+#         username = request.data.get("username")
+#         password = request.data.get("password")
+#         user = authenticate(username=username, password=password)
+        
+#         if user:
+#             groups = user.groups.first()
+               
+
+#             # Include company_id in the response
+#             company_id = user.company.id if user.company else None
+#             company_type = user.company.company_type if user.company else None
+            
+#             # Generate tokens
+            
+#             refresh = RefreshToken.for_user(user)
+
+#             return Response({
+#                 "access": str(refresh.access_token),
+#                 "refresh": str(refresh),
+#                 "role": groups.name if groups else None,
+#                 "company_id": company_id,  # Add company_id to the response
+#                 "company_type": company_type,
+#                 "id": user.id  # Add user_id to the response
+                
+#             }, status=status.HTTP_200_OK)
+        
+#         return Response({"message": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class LoginView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
         password = request.data.get("password")
+        
+        # First check if user exists
+        try:
+            user = User.objects.get(username=username)
+            if not user.is_active:
+                return Response(
+                    {"message": "Account suspended. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except User.DoesNotExist:
+            user = None
+
+        # Then authenticate
         user = authenticate(username=username, password=password)
         
         if user:
             groups = user.groups.first()
-               
-
-            # Include company_id in the response
             company_id = user.company.id if user.company else None
             company_type = user.company.company_type if user.company else None
-            
-            # Generate tokens
             
             refresh = RefreshToken.for_user(user)
 
@@ -467,14 +509,15 @@ class LoginView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "role": groups.name if groups else None,
-                "company_id": company_id,  # Add company_id to the response
+                "company_id": company_id,
                 "company_type": company_type,
-                "id": user.id  # Add user_id to the response
-                
+                "id": user.id
             }, status=status.HTTP_200_OK)
         
-        return Response({"message": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
-
+        return Response(
+            {"message": "Invalid username or password."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
         
 class ForgotPasswordView(APIView):
     def post(self, request, *args, **kwargs):
@@ -647,36 +690,10 @@ def reject_company(request, pk):
         return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-# @api_view(['GET'])
-# def get_company_details(request, pk):
-#     try:
-#         # Fetch the company details using the primary key (id)
-#         company = Company.objects.get(id=pk)
-#         serializer = CompanyRegistrationSerializer(company)  # Serialize the company object
-#         return Response(serializer.data, status=status.HTTP_200_OK)  # Return serialized data
-#     except Company.DoesNotExist:
-#         return Response({'error': 'Company not found'}, status=404)  # Handle company not found
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.http import JsonResponse
 from .models import Company  
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def get_company_details(request, pk):
-#     try:
-#         company = Company.objects.get(id=pk)  # Fetch company by ID
-#         return JsonResponse({
-#             'company_name': company.company_name,
-#             'company_email': company.company_email,
-#             'location': company.location,
-            
-
-#         }, status=200)
-#     except Company.DoesNotExist:
-#         return JsonResponse({'error': 'Company not found'}, status=404)
-#     except Exception as e:
-#         return JsonResponse({'error': str(e)}, status=500)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_company_details(request, pk):
@@ -816,172 +833,7 @@ def dashboard_stats(request):
         "total_users": total_users,
         "total_approved_companies": total_approved_companies,
     })
-
-# #post Product from from company 
-# class CreateProduct(APIView):
-#     permission_classes = [AllowAny]
-#     def post(self, request):
-#         user = request.user
-#         data = request.data
-#         try:
-#             # Assign company dynamically
-#             company = user.company
-#             category = "Renting" if "Construction" in company.company_type else "Selling"
-
-#             # Create a new product
-#             product = Product.objects.create(
-#                 title=data['title'],
-#                 description=data['description'],
-#                 price=data['price'],
-#                 per_day_rent=data['per_day_rent'],
-#                 image=data.get('image'),
-#                 discount_percentage=data['discount_percentage'],
-#                 category=category,
-#                 company=company,
-#                 is_available=data['is_available'],
-#             )
-#             serializer = ProductSerializer(product)
-#             return Response(serializer.data, status=201)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-# # today
-# from decimal import Decimal
-# from rest_framework.views import APIView
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.response import Response
-# from .models import Product
-# from django.shortcuts import get_object_or_404
-# class Test(APIView):
-#     permission_classes = [IsAuthenticated]  
-#     def get(self, request):
-#         company_id = request.query_params.get('company_id')
-#         if not company_id:
-#             return Response({"error": "Company ID is required."}, status=400)
-
-#         try:
-#             company_id = int(company_id)  # Ensure it's an integer
-#             products = Product.objects.filter(company_id=company_id)
-#             # Serialize the data (you may need a serializer like ProductSerializer)
-#             data = [{
-#                 'id': product.id,
-#                 'title': product.title,
-#                 'description': product.description,
-#                 'price': str(product.price),  # Convert Decimal to string for JSON
-#                 'category': product.category,
-#                 'perDayRent': str(product.per_day_rent) if product.per_day_rent else None,
-#                 'discountPercentage': str(product.discount_percentage) if product.discount_percentage else None,
-#                 'company': product.company_id,
-#                 'location': product.location,
-#                 'isAvailable': product.is_available,
-#                 'stock': product.stock,
-#                 'threshold': product.threshold,
-#                 'createdAt': product.created_at.isoformat(),
-#             } for product in products]
-#             return Response(data, status=200)
-#         except ValueError:
-#             return Response({"error": "Invalid company ID format."}, status=400)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-#     def post(self, request):
-#         user = request.user
-
-#         # 1) Check if user has a company
-#         company = getattr(user, "company", None)
-#         if company is None:
-#             return Response({"error": "This user has no associated company."}, status=400)
-
-#         # 2) Read category from request instead of forcing it
-#         data = request.data
-#         category = data.get("category", "").lower()  # Ensure lowercase consistency
-
-#         # 3) Validate category
-#         if category not in ["selling", "renting"]:
-#             return Response({"error": "Invalid category. Must be 'Selling' or 'Renting'."}, status=400)
-
-#         # 4) Read the uploaded file (if any)
-#         image_file = request.FILES.get("image")
-
-#         # 5) Convert 'discountPercentage' to Decimal (handle empty case)
-#         discount_value = Decimal(data.get("discountPercentage", "0"))  # Default to 0
-
-#         # 6) Convert 'isAvailable' string to boolean
-#         is_available = data.get("isAvailable", "false").lower() == "true"
-
-#         stock = int(data.get("stock", 0))  # Handle stock field
-#         # 7) Handle per_day_rent properly
-#         per_day_rent = None
-#         if category == "renting":
-#             try:
-#                 per_day_rent = Decimal(data.get("perDayRent", "0"))  # Default to 0 if missing
-#             except:
-#                 return Response({"error": "Invalid perDayRent value."}, status=400)
-        
-
-#         # 8) Create the new product
-#         product = Product.objects.create(
-#             title=data["title"],
-#             description=data["description"],
-#             price=Decimal(data["price"]),
-#             category=category,
-#             per_day_rent=per_day_rent,  # Allow NULL for "Selling"
-#             discount_percentage=discount_value,
-#             image=image_file,  # Handle file
-#             company=company,
-#             is_available=is_available,
-#             stock=stock,  # Save stock
-#             threshold=threshold, 
-#         )
-
-#         return Response({"message": "Product created successfully", "id": product.id}, status=201)
-
-#     def put(self, request, pk):
-#         # Handle updating an existing product (similar logic to POST, but update instead of create)
-#         product = get_object_or_404(Product, pk=pk)
-#         if product.company_id != request.user.company_id:
-#             return Response({"error": "You can only edit products belonging to your company."}, status=403)
-
-#         data = request.data
-#         category = data.get("category", "").lower()
-
-#         if category not in ["selling", "renting"]:
-#             return Response({"error": "Invalid category. Must be 'Selling' or 'Renting'."}, status=400)
-
-#         image_file = request.FILES.get("image")
-
-#         discount_value = Decimal(data.get("discountPercentage", "0"))
-#         is_available = data.get("isAvailable", "false").lower() == "true"
-
-#         per_day_rent = None
-#         if category == "renting":
-#             try:
-#                 per_day_rent = Decimal(data.get("perDayRent", "0"))
-#             except:
-#                 return Response({"error": "Invalid perDayRent value."}, status=400)
-#         stock = int(data.get("stock", 0))  # Handle stock field
-#         product.title = data["title"]
-#         product.description = data["description"]
-#         product.price = Decimal(data["price"])
-#         product.category = category
-#         product.per_day_rent = per_day_rent
-#         product.discount_percentage = discount_value
-#         product.is_available = is_available
-#         product.stock = stock  # Update stock
-#         threshold=threshold
-
-#         if image_file:
-#             product.image = image_file
-
-#         product.save()
-#         return Response({"message": "Product updated successfully"}, status=200)
-
-#     def delete(self, request, pk):
-#         product = get_object_or_404(Product, pk=pk)
-#         if product.company_id != request.user.company_id:
-#             return Response({"error": "You can only delete products belonging to your company."}, status=403)
-
-#         product.delete()
-#         return Response({"message": "Product deleted successfully"}, status=204)
-            
+         
 # views.py
 from decimal import Decimal
 from rest_framework.views import APIView
@@ -1319,137 +1171,6 @@ def clear_wishlist(request):
     return Response({'message': 'Wishlist cleared successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
-##payment##
-'''''''''''''''''
-
-class TransactionCreateAPIView(APIView):
-
-    def post(self, request):
-        data = request.data
-        
-        # Get payer and payee IDs
-        payer_id = data.get('payer')
-        payee_id = data.get('payee')
-        amount = data.get('amount')
-        description = data.get('description', '')  # Optional description
-
-        # Validate if payer and payee are valid users
-        try:
-            payer = CustomUser.objects.get(id=payer_id)
-        except CustomUser.DoesNotExist:
-            raise ValidationError("Payer does not exist.")
-
-        try:
-            payee = CustomUser.objects.get(id=payee_id)
-        except CustomUser.DoesNotExist:
-            raise ValidationError("Payee does not exist.")
-
-        # Create the transaction
-        transaction = Transaction.objects.create(
-            payer=payer,
-            payee=payee,
-            amount=amount,
-            description=description
-        )
-
-        # Serialize and return the transaction data
-        serializer = TransactionSerializer(transaction)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        
-class TransactionAPIView(APIView):
-    def get(self, request):
-        transactions = Transaction.objects.all()
-        serializer = TransactionSerializer(transactions, many=True)
-        return Response(serializer.data)
-
-    def delete(self, request, transaction_id):
-        try:
-            transaction = Transaction.objects.get(id=transaction_id)
-            transaction.delete()
-            return Response({"message": "Transaction deleted successfully"}, 
-                          status=status.HTTP_204_NO_CONTENT)
-        except Transaction.DoesNotExist:
-            return Response({"error": "Transaction not found"}, 
-                          status=status.HTTP_404_NOT_FOUND)    
-'''''''''''''''''
-# import os
-# import json
-# import requests
-# from django.http import JsonResponse
-# from django.views.decorators.csrf import csrf_exempt
-# from dotenv import load_dotenv
-
-# # Load API keys from .env file
-# load_dotenv()
-
-# KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "test_secret_key_b6f287aab3874adf880ba3ef82f4471c")
-
-# @csrf_exempt
-# def verify_khalti_payment(request):
-#     if request.method == "POST":
-#         try:
-#             data = json.loads(request.body)
-#             print("Received data:", data)  # Debug log
-#             token = data.get("token")
-#             amount = data.get("amount")  # Correct key
-
-#             if not token or not amount:
-#                 print("Missing token or amount:", {"token": token, "amount": amount})  # Debug log
-#                 return JsonResponse({"status": "failed", "message": "Missing token or amount"}, status=400)
-
-#             # Use test mode URL for Khalti
-#             url = "https://a.khalti.com/api/v2/payment/verify/"  # Test mode URL
-#             headers = {"Authorization": f"Key {KHALTI_SECRET_KEY}"}
-#             payload = {"token": token, "amount": amount}
-
-#             print("Sending to Khalti:", payload)  # Debug log
-#             response = requests.post(url, json=payload, headers=headers)
-#             response_data = response.json()
-#             print("Khalti Response:", response_data)  # Debug log
-
-#             if response.status_code == 200:
-#                 return JsonResponse({"status": "success", "message": "Payment Verified!", "data": response_data})
-#             else:
-#                 return JsonResponse({"status": "failed", "message": "Payment Verification Failed!", "data": response_data}, status=400)
-
-#         except json.JSONDecodeError as e:
-#             print("JSON Decode Error:", str(e))  # Debug log
-#             return JsonResponse({"status": "failed", "message": "Invalid JSON data"}, status=400)
-
-#     return JsonResponse({"status": "failed", "message": "Invalid request method"}, status=405)
-
-# import stripe
-# from django.conf import settings
-# from django.http import JsonResponse
-# from django.views.decorators.csrf import csrf_exempt
-# from django.views.decorators.http import require_POST
-# import json
-
-# stripe.api_key = settings.STRIPE_SECRET_KEY
-
-# @csrf_exempt
-# @require_POST
-# def create_payment_intent(request):
-#     try:
-#         data = json.loads(request.body)
-#         amount = data.get("amount")  # Amount in cents
-
-#         if not amount or not isinstance(amount, int):
-#             return JsonResponse({"error": "Invalid amount provided"}, status=400)
-
-#         # Create a PaymentIntent with the order amount and currency
-#         intent = stripe.PaymentIntent.create(
-#             amount=amount,  # Amount in cents (e.g., Rs. 1000 = 100000 cents)
-#             currency="npr",  # Nepalese Rupees
-#             payment_method_types=["card"],
-#         )
-
-#         return JsonResponse({
-#             "client_secret": intent["client_secret"]
-#         })
-#     except Exception as e:
-#         return JsonResponse({"error": str(e)}, status=500)
 # backend/views.py
 import stripe
 from rest_framework.views import APIView
@@ -1487,200 +1208,6 @@ class CreatePaymentIntentView(APIView):
 
 
 
-# # core/views.py
-# from django.db import IntegrityError
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import Order, OrderItem, Company, CustomUser
-# from .serializers import OrderSerializer
-
-
-# class OrderCreateView(APIView):
-#     def post(self, request):
-#         try:
-#             user_id = request.data.get("user_id")
-#             order_type = request.data.get("order_type")
-#             total_amount = request.data.get("total_amount")
-#             buying_items = request.data.get("buying_items", [])
-#             renting_items = request.data.get("renting_items", [])
-#             billing_details = request.data.get("billing_details")
-#             renting_details = request.data.get("renting_details")
-#             booking_id = request.data.get("booking_id")
-#             transaction_uuid = request.data.get("transaction_uuid")
-
-#             if not user_id or not order_type or not total_amount or not booking_id:
-#                 return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             if not buying_items and not renting_items:
-#                 return Response({"error": "At least one buying or renting item is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # all_items = buying_items + renting_items
-#             # company_ids = set(item["company_id"] for item in all_items if "company_id" in item)
-
-#             # if len(company_ids) != 1:
-#             #     return Response({"error": "All items must belong to the same company for a single order"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # company_id = company_ids.pop()
-#             # company = Company.objects.get(id=company_id)
-#             user = CustomUser.objects.get(id=user_id)
-
-#             order = Order.objects.create(
-#                 user=user,
-#                 # company=company,
-#                 order_type=order_type,
-#                 total_amount=total_amount,
-#                 billing_details=billing_details,
-#                 renting_details=renting_details,
-#                 booking_id=booking_id,
-#                 buying_status=None if order_type == "renting" else "pending",
-#                 renting_status=None if order_type == "buying" else "pending",
-#             )
-#             # order_status_updated.send(
-#             # sender=Order,
-#             # instance=order,
-#             # created=False,
-#             # raw=False,
-#             # using='default',
-#             # update_fields=None,
-#             # user=request.user  # <--- extra data here
-#             # )
-#             for item in buying_items:
-#                 OrderItem.objects.create(
-#                     order=order,
-#                     product_id=item["product_id"],
-#                     quantity=item["quantity"],
-#                     price=item["price"],
-#                     item_type="buying",
-#                 )
-
-#             for item in renting_items:
-#                 OrderItem.objects.create(
-#                     order=order,
-#                     product_id=item["product_id"],
-#                     quantity=item["quantity"],
-#                     price=item["price"],
-#                     item_type="renting",
-#                 )
-
-#             serializer = OrderSerializer(order)
-#             return Response({
-#                 "invoices": {
-#                     "order_id": order.id,
-#                     "booking_id": booking_id,
-#                     "transaction_uuid": transaction_uuid,
-#                     "order_type": order_type,
-#                 },
-#                 "order": serializer.data
-#             }, status=status.HTTP_201_CREATED)
-#         except Company.DoesNotExist:
-#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except CustomUser.DoesNotExist:
-#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except IntegrityError as e:
-#             return Response({"error": f"Database error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-# # {
-# from django.db import transaction
-# from django.db import IntegrityError
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import Order, OrderItem, Company, CustomUser, Product
-# from .serializers import OrderSerializer
-
-# class OrderCreateView(APIView):
-#     def post(self, request):
-#         try:
-#             user_id = request.data.get("user_id")
-#             order_type = request.data.get("order_type")
-#             total_amount = request.data.get("total_amount")
-#             buying_items = request.data.get("buying_items", [])
-#             renting_items = request.data.get("renting_items", [])
-#             billing_details = request.data.get("billing_details")
-#             renting_details = request.data.get("renting_details")
-#             booking_id = request.data.get("booking_id")
-#             transaction_uuid = request.data.get("transaction_uuid")
-
-#             if not user_id or not order_type or not total_amount or not booking_id:
-#                 return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             if not buying_items and not renting_items:
-#                 return Response({"error": "At least one buying or renting item is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             user = CustomUser.objects.get(id=user_id)
-
-#             # Step 1: Validate stock for all items
-#             all_items = buying_items + renting_items
-#             for item in all_items:
-#                 product = Product.objects.get(id=item["product_id"])
-#                 if product.stock < item["quantity"]:
-#                     return Response(
-#                         {"error": f"Insufficient stock for product {product.title}. Available: {product.stock}, Requested: {item['quantity']}"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-
-#             # Step 2: Create the order and update stock for buying items only
-#             with transaction.atomic():
-#                 order = Order.objects.create(
-#                     user=user,
-#                     order_type=order_type,
-#                     total_amount=total_amount,
-#                     billing_details=billing_details,
-#                     renting_details=renting_details,
-#                     booking_id=booking_id,
-#                     buying_status=None if order_type == "renting" else "pending",
-#                     renting_status=None if order_type == "buying" else "pending",
-#                 )
-
-#                 # Process buying items
-#                 for item in buying_items:
-#                     product = Product.objects.get(id=item["product_id"])
-#                     product.stock -= item["quantity"]  # Decrease stock for buying
-#                     product.save()
-
-#                     OrderItem.objects.create(
-#                         order=order,
-#                         product_id=item["product_id"],
-#                         quantity=item["quantity"],
-#                         price=item["price"],
-#                         item_type="buying",
-#                     )
-
-#                 # Process renting items (stock will be reduced later when status is "picked up")
-#                 for item in renting_items:
-#                     OrderItem.objects.create(
-#                         order=order,
-#                         product_id=item["product_id"],
-#                         quantity=item["quantity"],
-#                         price=item["price"],
-#                         item_type="renting",
-#                     )
-
-#             serializer = OrderSerializer(order)
-#             return Response({
-#                 "invoices": {
-#                     "order_id": order.id,
-#                     "booking_id": booking_id,
-#                     "transaction_uuid": transaction_uuid,
-#                     "order_type": order_type,
-#                 },
-#                 "order": serializer.data
-#             }, status=status.HTTP_201_CREATED)
-
-#         except Company.DoesNotExist:
-#             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except CustomUser.DoesNotExist:
-#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Product.DoesNotExist:
-#             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except IntegrityError as e:
-#             return Response({"error": f"Database error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# # ]
 from django.db import IntegrityError, transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -1879,206 +1406,6 @@ class OrderListView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-# from django.db.models import Q 
-# class CompanyOrderListView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         try:
-#             user = request.user
-#             # Get filter parameter from query string
-#             filter_status = request.query_params.get('filter_status', None)
-
-#             # Base query: fetch orders with items belonging to the user's company
-#             orders = Order.objects.filter(
-#                 items__product__company=user.company
-#             ).distinct().order_by('-created_at')
-
-#             # Define status categories
-#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
-#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
-
-#             # Apply filter based on filter_status
-#             if filter_status:
-#                 if filter_status.lower() == "all_except_delivered_returned":
-#                     # Exclude orders with buying_status: "Delivered" and renting_status: "Returned"
-#                     orders = orders.filter(
-#                         ~Q(order_type__in=['buying', 'mixed'], buying_status="Delivered") &
-#                         ~Q(order_type__in=['renting', 'mixed'], renting_status="Returned")
-#                     )
-#                 elif filter_status in buying_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
-#                     )
-#                 elif filter_status in renting_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
-#                     )
-
-#             # Pass the company_id to the serializer context
-#             serializer = OrderSerializer(
-#                 orders,
-#                 many=True,
-#                 context={'company_id': str(user.company.id)}
-#             )
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#22
-# from django.db.models import Q
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
-# from .models import Order
-# from .serializers import OrderSerializer
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class CompanyOrderListView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         try:
-#             user = request.user
-#             # Get filter parameter from query string
-#             filter_status = request.query_params.get('filter_status', None)
-
-#             # Base query: fetch orders with items belonging to the user's company
-#             orders = Order.objects.filter(
-#                 items__product__company=user.company
-#             ).distinct().order_by('-created_at')
-
-#             # Define status categories
-#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
-#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
-
-#             # Apply filter based on filter_status
-#             if filter_status:
-#                 if filter_status.lower() == "all_except_delivered_returned":
-#                     # Exclude orders with buying_status: "Delivered" and renting_status: "Returned"
-#                     orders = orders.filter(
-#                         ~Q(order_type__in=['buying', 'mixed'], buying_status="Delivered") &
-#                         ~Q(order_type__in=['renting', 'mixed'], renting_status="Returned")
-#                     )
-#                 elif filter_status in buying_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
-#                     )
-#                 elif filter_status in renting_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
-#                     )
-
-#             # Pass the company_id to the serializer context
-#             serializer = OrderSerializer(
-#                 orders,
-#                 many=True,
-#                 context={'company_id': str(user.company.id)}
-#             )
-
-#             # Filter out orders with no relevant items
-#             filtered_orders = [
-#                 order for order in serializer.data
-#                 if order['buying_items'] or order['renting_items']
-#             ]
-
-#             logger.info(f"Returning {len(filtered_orders)} orders for company_id={user.company.id}")
-#             return Response(filtered_orders, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             logger.error(f"Error fetching company orders: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# from django.db.models import Q
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
-# from .models import Order
-# from .serializers import OrderSerializer
-# import logging
-# from datetime import datetime
-
-# logger = logging.getLogger(__name__)
-
-# class CompanyOrderListView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         try:
-#             user = request.user
-#             # Get filter parameters from query string
-#             filter_status = request.query_params.get('filter_status', None)
-#             start_date = request.query_params.get('start_date', None)
-#             end_date = request.query_params.get('end_date', None)
-
-#             # Base query: fetch orders with items belonging to the user's company
-#             orders = Order.objects.filter(
-#                 items__product__company=user.company
-#             ).distinct()
-
-#             # Apply date-wise filtering if provided
-#             if start_date:
-#                 try:
-#                     start_date = datetime.strptime(start_date, '%Y-%m-%d')
-#                     orders = orders.filter(created_at__gte=start_date)
-#                 except ValueError:
-#                     return Response({"error": "Invalid start_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-
-#             if end_date:
-#                 try:
-#                     end_date = datetime.strptime(end_date, '%Y-%m-%d')
-#                     orders = orders.filter(created_at__lte=end_date)
-#                 except ValueError:
-#                     return Response({"error": "Invalid end_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Define status categories
-#             buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
-#             renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
-#             active_buying_statuses = ["Paid", "Processing"]
-#             active_renting_statuses = ["Booked", "Picked Up"]
-
-#             # Apply filter based on filter_status
-#             if filter_status:
-#                 if filter_status.lower() == "all_except_delivered_returned":
-#                     # Default filter: show only active orders (Paid, Processing for buying; Booked, Picked Up for renting)
-#                     orders = orders.filter(
-#                         # For buying/mixed orders, only include Paid or Processing
-#                         Q(order_type__in=['buying', 'mixed'], buying_status__in=active_buying_statuses) |
-#                         # For renting/mixed orders, only include Booked or Picked Up
-#                         Q(order_type__in=['renting', 'mixed'], renting_status__in=active_renting_statuses)
-#                     )
-#                 elif filter_status in buying_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['buying', 'mixed']) & Q(buying_status=filter_status)
-#                     )
-#                 elif filter_status in renting_statuses:
-#                     orders = orders.filter(
-#                         Q(order_type__in=['renting', 'mixed']) & Q(renting_status=filter_status)
-#                     )
-
-#             # Order by created_at descending
-#             orders = orders.order_by('-created_at')
-
-#             # Pass the company_id to the serializer context
-#             serializer = OrderSerializer(
-#                 orders,
-#                 many=True,
-#                 context={'company_id': str(user.company.id)}
-#             )
-
-#             # Filter out orders with no relevant items
-#             filtered_orders = [
-#                 order for order in serializer.data
-#                 if order['buying_items'] or order['renting_items']
-#             ]
-
-#             logger.info(f"Returning {len(filtered_orders)} orders for company_id={user.company.id}")
-#             return Response(filtered_orders, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             logger.error(f"Error fetching company orders: {str(e)}")
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -2150,69 +1477,7 @@ class CompanyOrderListView(APIView):
         except Exception as e:
             logger.error(f"Error fetching company orders: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-# # {}        
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import Order, OrderItem, Company, CustomUser, PaymentDistribution
-# from .serializers import OrderSerializer
-# from rest_framework.permissions import IsAuthenticated
-# # from .signals import order_status_updated
-# class UpdateOrderStatusView(APIView):
-#     permission_classes = [IsAuthenticated]
 
-#     def patch(self, request, order_id):
-#         try:
-#             order = Order.objects.get(id=order_id)
-
-#             new_buying_status = request.data.get("buying_status")
-#             new_renting_status = request.data.get("renting_status")
-
-#             # Validate and update buying_status for buying or mixed orders
-#             if new_buying_status and order.order_type in ["buying", "mixed"]:
-#                 valid_buying_statuses = ["Paid", "Processing", "Delivered", "Cancelled"]
-#                 if new_buying_status not in valid_buying_statuses:
-#                     return Response(
-#                         {"error": f"Invalid buying status. Must be one of {valid_buying_statuses}"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-#                 order.buying_status = new_buying_status
-
-#             # Validate and update renting_status for renting or mixed orders
-#             if new_renting_status and order.order_type in ["renting", "mixed"]:
-#                 valid_renting_statuses = ["Booked", "Picked Up", "Returned", "Cancelled"]
-#                 if new_renting_status not in valid_renting_statuses:
-#                     return Response(
-#                         {"error": f"Invalid renting status. Must be one of {valid_renting_statuses}"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-#                 order.renting_status = new_renting_status
-
-#             # Ensure at least one status is being updated
-#             if not new_buying_status and not new_renting_status:
-#                 return Response(
-#                     {"error": "At least one of buying_status or renting_status must be provided"},
-#                     status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             order.save()
-#             # order_status_updated.send(
-#             # sender=Order,
-#             # instance=order,
-#             # created=True,
-#             # raw=False,
-#             # using='default',
-#             # update_fields=None,
-#             # user=request.user  # <--- extra data here
-#             # )
-#             serializer = OrderSerializer(order)
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         except Order.DoesNotExist:
-#             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-#         # ]
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -2646,276 +1911,6 @@ def get_company_services_by_id(request, company_id):
         logger.error(f"Error in get_company_services_by_id: {str(e)}")
         return JsonResponse({"error": str(e)}, status=400)
     
-#4/22
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework import status
-# from .models import Inquiry, Appointment, Company, EngineeringConsultingData, BuildingConstructionData, PostConstructionMaintenanceData, SafetyTrainingData
-# from .serializers import InquirySerializer
-# from django.shortcuts import get_object_or_404
-# from django.utils import timezone
-# from datetime import datetime, timedelta
-# from django.core.mail import send_mail
-
-# class SubmitInquiryView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, company_id):
-#         try:
-#             user = request.user
-#             company = get_object_or_404(Company, id=company_id)
-            
-#             # Handle num_floors safely
-#             num_floors_value = request.POST.get('num_floors', None)
-#             num_floors = None
-#             if num_floors_value and num_floors_value.strip() and num_floors_value != 'null':
-#                 try:
-#                     num_floors = int(num_floors_value)
-#                     if num_floors < 1:  # Ensure positive integer
-#                         num_floors = None
-#                 except ValueError:
-#                     num_floors = None
-
-#             # Create Inquiry
-#             inquiry_data = {
-#                 'user': user,
-#                 'company': company,
-#                 'full_name': request.POST.get('full_name', ''),
-#                 'location': request.POST.get('location', ''),
-#                 'email': request.POST.get('email', ''),
-#                 'phone_number': request.POST.get('phone_number', ''),
-#                 'category': request.POST.get('category', ''),
-#                 'sub_service': request.POST.get('sub_service', ''),
-#                 'status': 'Pending',
-#             }
-#             inquiry = Inquiry(**inquiry_data)
-#             inquiry.save()
-
-#             # Create service-specific data based on category
-#             if inquiry.category == "Engineering Consulting":
-#                 service_data = EngineeringConsultingData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Building Construction Services":
-#                 service_data = BuildingConstructionData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Post-Construction Maintenance":
-#                 service_data = PostConstructionMaintenanceData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Safety and Training Services":
-#                 service_data = SafetyTrainingData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-
-#             # Schedule appointment only for Engineering Consulting and Building Construction Services
-#             if inquiry.category in ["Engineering Consulting", "Building Construction Services"]:
-#                 # Define time constraints
-#                 start_hour = 10  # 10:00 AM
-#                 end_hour = 17   # 5:00 PM
-#                 slot_duration = 21  # Duration in minutes per appointment
-#                 max_slots_per_day = ((end_hour - start_hour) * 60) // slot_duration  # Total slots between 10 AM and 5 PM
-
-#                 # Start checking from tomorrow
-#                 current_date = timezone.now().date() + timedelta(days=1)
-#                 while True:
-#                     daily_appointments = Appointment.objects.filter(
-#                         company=company,
-#                         appointment_date__date=current_date
-#                     ).count()
-
-#                     if daily_appointments < max_slots_per_day:
-#                         # Calculate the appointment time
-#                         start_time = datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
-#                         minutes_offset = daily_appointments * slot_duration
-#                         appointment_time = start_time + timedelta(minutes=minutes_offset)
-
-#                         # Ensure the appointment doesn't exceed 5:00 PM
-#                         end_time = appointment_time + timedelta(minutes=slot_duration)
-#                         if end_time.time() <= datetime.strptime('17:00', '%H:%M').time():
-#                             appointment = Appointment(
-#                                 inquiry=inquiry,
-#                                 company=company,
-#                                 appointment_date=appointment_time
-#                             )
-#                             appointment.save()
-
-#                             inquiry.status = 'Scheduled'
-#                             inquiry.save()
-
-#                             # Send email
-#                             send_mail(
-#                                 'Appointment Confirmation',
-#                                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
-#                                 'fybproject6@gmail.com',
-#                                 [inquiry.email],
-#                                 fail_silently=True,
-#                             )
-
-#                             serializer = InquirySerializer(inquiry)
-#                             return Response({
-#                                 'message': 'Inquiry submitted successfully',
-#                                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
-#                                 'data': serializer.data
-#                             }, status=status.HTTP_201_CREATED)
-#                     # If the day is full, move to the next day
-#                     current_date += timedelta(days=1)
-#             else:
-#                 # For other categories, just return success without scheduling an appointment
-#                 serializer = InquirySerializer(inquiry)
-#                 return Response({
-#                     'message': 'Inquiry submitted successfully. No appointment required for this service.',
-#                     'data': serializer.data
-#                 }, status=status.HTTP_201_CREATED)
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#     def _populate_service_data(self, service_data, request):
-#         for field in service_data._meta.fields:
-#             field_name = field.name
-#             if field_name in request.POST:
-#                 setattr(service_data, field_name, request.POST[field_name])
-#             elif field_name in request.FILES:
-#                 setattr(service_data, field_name, request.FILES[field_name])
-#4/22
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework import status
-# from .models import Inquiry, Appointment, Company, EngineeringConsultingData, BuildingConstructionData, PostConstructionMaintenanceData, SafetyTrainingData
-# from .serializers import InquirySerializer
-# from django.shortcuts import get_object_or_404
-# from django.utils import timezone
-# from datetime import datetime, timedelta
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class SubmitInquiryView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, company_id):
-#         try:
-#             user = request.user
-#             company = get_object_or_404(Company, id=company_id)
-            
-#             # Handle num_floors safely
-#             num_floors_value = request.POST.get('num_floors', None)
-#             num_floors = None
-#             if num_floors_value and num_floors_value.strip() and num_floors_value != 'null':
-#                 try:
-#                     num_floors = int(num_floors_value)
-#                     if num_floors < 1:  # Ensure positive integer
-#                         num_floors = None
-#                 except ValueError:
-#                     num_floors = None
-
-#             # Create Inquiry
-#             inquiry_data = {
-#                 'user': user,
-#                 'company': company,
-#                 'full_name': request.POST.get('full_name', ''),
-#                 'location': request.POST.get('location', ''),
-#                 'email': request.POST.get('email', ''),
-#                 'phone_number': request.POST.get('phone_number', ''),
-#                 'category': request.POST.get('category', ''),
-#                 'sub_service': request.POST.get('sub_service', ''),
-#                 'status': 'Pending',
-#             }
-#             inquiry = Inquiry(**inquiry_data)
-#             inquiry.save()
-
-#             # Create service-specific data based on category
-#             if inquiry.category == "Engineering Consulting":
-#                 service_data = EngineeringConsultingData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Building Construction Services":
-#                 service_data = BuildingConstructionData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Post-Construction Maintenance":
-#                 service_data = PostConstructionMaintenanceData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-#             elif inquiry.category == "Safety and Training Services":
-#                 service_data = SafetyTrainingData(inquiry=inquiry)
-#                 self._populate_service_data(service_data, request)
-#                 service_data.save()
-
-#             # Schedule appointment only for Engineering Consulting and Building Construction Services
-#             if inquiry.category in ["Engineering Consulting", "Building Construction Services"]:
-#                 # Define time constraints
-#                 start_hour = 10  # 10:00 AM
-#                 end_hour = 17   # 5:00 PM
-#                 slot_duration = 21  # Duration in minutes per appointment
-#                 max_slots_per_day = ((end_hour - start_hour) * 60) // slot_duration  # Total slots between 10 AM and 5 PM
-
-#                 # Start checking from tomorrow
-#                 current_date = timezone.now().date() + timedelta(days=1)
-#                 while True:
-#                     daily_appointments = Appointment.objects.filter(
-#                         company=company,
-#                         appointment_date__date=current_date
-#                     ).count()
-
-#                     if daily_appointments < max_slots_per_day:
-#                         # Calculate the appointment time
-#                         start_time = datetime.datetime.combine(current_date, datetime.strptime(f'{start_hour}:00', '%H:%M').time())
-#                         minutes_offset = daily_appointments * slot_duration
-#                         appointment_time = start_time + timedelta(minutes=minutes_offset)
-
-#                         # Ensure the appointment doesn't exceed 5:00 PM
-#                         end_time = appointment_time + timedelta(minutes=slot_duration)
-#                         if end_time.time() <= datetime.strptime('17:00', '%H:%M').time():
-#                             appointment = Appointment(
-#                                 inquiry=inquiry,
-#                                 company=company,
-#                                 appointment_date=appointment_time
-#                             )
-#                             appointment.save()
-
-#                             inquiry.status = 'Scheduled'
-#                             inquiry.save()
-
-#                             # Send email
-#                             send_mail(
-#                                 'Appointment Confirmation',
-#                                 f'Your appointment is scheduled for {appointment_time.strftime("%Y-%m-%d %I:%M %p")} with {company.company_name}',
-#                                 'fybproject6@gmail.com',
-#                                 [inquiry.email],
-#                                 fail_silently=True,
-#                             )
-
-#                             serializer = InquirySerializer(inquiry)
-#                             return Response({
-#                                 'message': 'Inquiry submitted successfully',
-#                                 'appointment': appointment_time.strftime('%Y-%m-%d %I:%M %p'),
-#                                 'data': serializer.data
-#                             }, status=status.HTTP_201_CREATED)
-#                     # If the day is full, move to the next day
-#                     current_date += timedelta(days=1)
-#             else:
-#                 # For other categories, just return success without scheduling an appointment
-#                 serializer = InquirySerializer(inquiry)
-#                 return Response({
-#                     'message': 'Inquiry submitted successfully. No appointment required for this service.',
-#                     'data': serializer.data
-#                 }, status=status.HTTP_201_CREATED)
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#     def _populate_service_data(self, service_data, request):
-#         for field in service_data._meta.fields:
-#             field_name = field.name
-#             if field_name in request.POST:
-#                 setattr(service_data, field_name, request.POST[field_name])
-#             elif field_name in request.FILES:
-#                 setattr(service_data, field_name, request.FILES[field_name])
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -3261,104 +2256,7 @@ class UpdateAppointmentStatusView(APIView):
             logger.error(f"Error in UpdateAppointmentStatusView: {str(e)}")
             return Response({"error": "Failed to update status"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# class CheckNewInquiriesView(APIView):
-#     permission_classes = [IsAuthenticated]
 
-#     def get(self, request):
-#         try:
-#             company = request.user.company
-#             if not company:
-#                 return Response({"error": "Company not associated with this user"}, status=400)
-            
-#             last_check = company.last_inquiry_check or timezone.datetime(1970, 1, 1)
-#             new_inquiries = Inquiry.objects.filter(company=company, created_at__gt=last_check).exists()
-#             return Response({"has_new_inquiries": new_inquiries}, status=200)
-#         except Exception as e:
-#             logger.error(f"Error in CheckNewInquiriesView: {str(e)}")
-#             return Response({"error": str(e)}, status=500)
-
-# class GetLastInquiryCheckView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         try:
-#             company = request.user.company
-#             last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
-#             return Response({"last_inquiry_check": last_check}, status=200)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-
-# class MarkInquiriesCheckedView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         try:
-#             company = request.user.company
-#             company.last_inquiry_check = timezone.now()
-#             company.save()
-#             return Response({"status": "success"}, status=200)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-
-# class GetLastInquiryCheckView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         try:
-#             company = request.user.company
-#             last_check = company.last_inquiry_check or datetime(1970, 1, 1, tzinfo=timezone.utc)
-#             return Response({"last_inquiry_check": last_check}, status=200)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-
-
-
-#appointment
-
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework.permissions import IsAuthenticated
-# from django.shortcuts import get_object_or_404
-# from rest_framework import status
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-# class UpdateAppointmentView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def patch(self, request, appointment_id):
-#         try:
-#             appointment = get_object_or_404(Appointment, id=appointment_id, company=request.user.company)
-#             new_date = request.data.get('appointment_date')
-#             new_status = request.data.get('status')
-#             if new_date:
-#                 appointment.appointment_date = new_date
-#             if new_status:
-#                 valid_statuses = [choice[0] for choice in Appointment._meta.get_field('status').choices]
-#                 if new_status not in valid_statuses:
-#                     return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
-#                 appointment.status = new_status
-#             appointment.save()
-#             return Response({"message": "Appointment updated"}, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             logger.error(f"Error in UpdateAppointmentView: {str(e)}")
-#             return Response({"error": "Failed to update appointment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# class DeleteAppointmentView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def delete(self, request, appointment_id):
-#         try:
-#             appointment = get_object_or_404(Appointment, id=appointment_id, company=request.user.company)
-#             inquiry = appointment.inquiry
-#             appointment.delete()
-#             inquiry.status = 'Pending'  # Reset inquiry status
-#             inquiry.save()
-#             return Response({"message": "Appointment deleted"}, status=status.HTTP_204_NO_CONTENT)
-#         except Exception as e:
-#             logger.error(f"Error in DeleteAppointmentView: {str(e)}")
-#             return Response({"error": "Failed to delete appointment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # appointment
@@ -5710,7 +4608,277 @@ class CompanyDashboardStatsView(APIView):
         except Exception as e:
             logger.error(f"Error fetching company dashboard stats: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAdminUser
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class UserListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        company_filter = request.query_params.get('company', None)
+        exclude_superuser = request.query_params.get('exclude_superuser', 'false').lower() == 'true'
+
+        users = User.objects.all()
+        if company_filter is not None:
+            if company_filter.lower() == 'true':
+                users = users.filter(company__isnull=False)
+            elif company_filter.lower() == 'false':
+                users = users.filter(company__isnull=True)
+        if exclude_superuser:
+            users = users.filter(is_superuser=False)
+
+        user_data = [
+            {
+                'username': user.username,
+                'email': user.email,
+                'is_active': user.is_active,
+                'company_id': user.company.id if user.company else None,
+            }
+            for user in users
+        ]
+        return Response({'users': user_data}, status=status.HTTP_200_OK)
+    def post(self, request):
+        username = request.data.get("username")
+        action = request.data.get("action")
+        
+        try:
+            user = User.objects.get(username=username)
+            if action == "delete":
+                user.delete()
+                return Response({"message": "User deleted"}, status=status.HTTP_200_OK)
+            elif action == "toggle_active":
+                user.is_active = not user.is_active
+                user.save()
+                return Response({"message": "User status updated"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
 
 
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from .models import Subscription, Plan
 
+class SubscriptionListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        subscriptions = Subscription.objects.select_related('company').all()
+        data = []
+        
+        for sub in subscriptions:
+            data.append({
+                "id": sub.id,
+                "company": sub.company.company_name,
+                "plan": sub.get_plan_display(),
+                "start_date": sub.start_date,
+                "end_date": sub.end_date,
+                "status": "Active" if sub.is_valid() else "Expired",
+                "amount": sub.amount,
+                "payment_data": sub.payment_data
+            })
+        
+        return Response({"subscriptions": data})
+
+# views.py
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from .models import Plan
+from .serializers import PlanSerializer
+
+class PlanList(APIView):
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        plans = Plan.objects.all()
+        serializer = PlanSerializer(plans, many=True)
+        return Response({"plans": serializer.data})
+
+    def put(self, request):
+        plan_id = request.data.get('id')
+        try:
+            plan = Plan.objects.get(id=plan_id)
+            serializer = PlanSerializer(plan, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except Plan.DoesNotExist:
+            return Response({"error": "Plan not found"}, status=404)
+        
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAdminUser
+from django.conf import settings
+from django.core.mail import send_mail
+from .models import SupportRequest, Complaint
+from .serializers import SupportRequestSerializer, ComplaintSerializer
+from .permissions import ConditionalAuthentication
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+class SupportRequestCreate(APIView):
+    auth_setting = 'REQUIRE_AUTH_FOR_SUPPORT'
+    permission_classes = [ConditionalAuthentication]
+
+    def post(self, request):
+        serializer = SupportRequestSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user if request.user.is_authenticated else None
+            instance = serializer.save(user=user)
+
+            try:
+                send_mail(
+                    subject=f"New Support Request: {instance.subject}",
+                    message=f"""
+                    A new support request has been submitted.
+
+                    Ticket ID: {instance.id}
+                    From: {instance.name or (instance.user.username if instance.user else 'Anonymous')}
+                    Email: {instance.email}
+                    Subject: {instance.subject}
+                    Message: {instance.message}
+                    Submitted At: {instance.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+                    """,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[settings.EMAIL_HOST_USER],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send support request email: {str(e)}")
+
+            return Response({
+                "message": "Support request submitted successfully",
+                "ticket_id": instance.id
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "detail": "Invalid data",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class ComplaintCreate(APIView):
+    auth_setting = 'REQUIRE_AUTH_FOR_COMPLAINTS'
+    permission_classes = [ConditionalAuthentication]
+
+    def post(self, request):
+        serializer = ComplaintSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user if request.user.is_authenticated else None
+            instance = serializer.save(user=user)
+
+            # Send email notification to admin
+            try:
+                send_mail(
+                    subject=f"New Complaint: {instance.subject}",
+                    message=f"""
+                    A new complaint has been submitted.
+
+                    Ticket ID: {instance.id}
+                    From: {instance.user.username if instance.user else 'Anonymous'}
+                    Email: {instance.email or 'N/A'}
+                    Subject: {instance.subject}
+                    Category: {instance.category}
+                    Description: {instance.description}
+                    Submitted At: {instance.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+                    """,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[settings.EMAIL_HOST_USER],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send complaint email: {str(e)}")
+
+            return Response({
+                "message": "Complaint submitted successfully",
+                "ticket_id": instance.id
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "detail": "Invalid data",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class SupportRequestList(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        support_requests = SupportRequest.objects.all().order_by('-created_at')
+        serializer = SupportRequestSerializer(support_requests, many=True)
+        return Response({
+            "support_requests": serializer.data
+        }, status=status.HTTP_200_OK)
+
+class ComplaintList(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        complaints = Complaint.objects.all().order_by('-created_at')
+        serializer = ComplaintSerializer(complaints, many=True)
+        return Response({
+            "complaints": serializer.data
+        }, status=status.HTTP_200_OK)
+
+class SendResponseEmail(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        email = request.data.get('email')
+        client_name = request.data.get('client_name', 'Client')
+        subject = request.data.get('subject', 'Response to Your Inquiry')
+        response_body = request.data.get('response_body')
+
+        if not all([email, response_body]):
+            return Response({
+                "detail": "Email and response body are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Basic sanitization of response_body
+        response_body = response_body.strip()
+
+        try:
+            send_mail(
+                subject=subject,
+                message=f"""
+                Dear {client_name},
+
+                {response_body}
+
+                Best regards,
+                Engineering Construction Marketplace Team
+                """,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            return Response({
+                "message": "Response email sent successfully"
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to send response email to {email}: {str(e)}")
+            return Response({
+                "detail": "Failed to send email"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 

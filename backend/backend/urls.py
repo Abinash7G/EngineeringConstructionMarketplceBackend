@@ -10,6 +10,8 @@ from ersathi.views import (
     #AddCommentView,
     CompanyDashboardStatsView,
     CompanyServiceCategoryListView,
+    ComplaintCreate,
+    ComplaintDeleteView,
     FeaturedCompaniesView,
     GetUserRating,
     PaymentCreateView,
@@ -38,12 +40,15 @@ from ersathi.views import (
     RentVerificationUserUpdateView,
     SafetyTrainingCompaniesView,
     SubmitCompanyRating,
+    PlanList,
    
     SubmitInquiryView,
     SubmitRatingView,
     SubscribeView,
+    SubscriptionListView,
     SubscriptionPaymentIntentView,
     SubscriptionStatusView,
+    SupportRequestCreate,
     Test,
     TopPurchasedItemsView,
     
@@ -53,6 +58,8 @@ from ersathi.views import (
     UpdateInquiryStatusView,
     UpdateOrderPaymentView,
     UpdateOrderStatusView,
+    UserListView,
+    
     clear_cart,
     clear_wishlist,
     
@@ -126,7 +133,10 @@ from ersathi.views import (
     # ChatListView,
     # MessageView,
     verify_password,
-    
+    SupportRequestList,
+    ComplaintList,
+    SendResponseEmail,
+    SupportRequestDeleteView
    
 )
 
@@ -280,6 +290,20 @@ urlpatterns = [
     path('api/services/<int:service_id>/delete/', views.delete_service, name='delete_service'),
     path('api/safety-training-companies/', SafetyTrainingCompaniesView.as_view(), name='safety-training-companies'),
     path('api/request-safety-training/<int:company_id>/', RequestSafetyTrainingView.as_view(), name='request-safety-training'),
+    path('api/users/', UserListView.as_view(), name='user-list'),
+    path('api/subscriptions/', SubscriptionListView.as_view()),
+    path('api/plans_company/', PlanList.as_view()),
+    path('api/support/', SupportRequestCreate.as_view(), name='support-create'),
+    path('api/complaints/', ComplaintCreate.as_view(), name='complaint-create'),
+    path('api/support-requests/', SupportRequestList.as_view(), name='support-request-list'),
+    path('api/complaints-list/', ComplaintList.as_view(), name='complaint-list'),
+    path('api/send-response-email/', SendResponseEmail.as_view(), name='send-response-email'),
+    
+
+
+
+    
+    
 
     #subscription
     path('api/stripe/subscription-payment-intent/<int:company_id>/', SubscriptionPaymentIntentView.as_view(), name='subscription-payment-intent'),

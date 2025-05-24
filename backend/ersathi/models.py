@@ -7,8 +7,6 @@ from django.conf import settings
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-
-
 # Define company type choices
 COMPANY_TYPE_CHOICES = [
     ('construction', 'Construction Company'),
@@ -119,12 +117,10 @@ class Product(models.Model):
     location = models.CharField(max_length=255, null=True, blank=True)
     is_available = models.BooleanField(default=True)
     stock = models.PositiveIntegerField(default=0)  # New field for stock quantity
-    threshold =models.PositiveIntegerField(default=2)
     rating = models.FloatField(default=0.0)  # New field for average rating
     num_reviews = models.PositiveIntegerField(default=0)  # New field for number of reviews
     created_at = models.DateTimeField(auto_now_add=True)
-    
-
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         """Automatically set the location from the associated company."""
@@ -470,64 +466,6 @@ class Appointment(models.Model):
     
 
 
-# ###order
-# # backend/models.py
-# class Order(models.Model):
-#     STATUS_CHOICES_BUYING = (
-#         ('paid', 'Paid'),
-#         ('processing', 'Processing'),
-#         ('delivered', 'Delivered'),
-#         ('cancelled', 'Cancelled'),
-#     )
-#     STATUS_CHOICES_RENTING = (
-#         ('booked', 'Booked'),
-#         ('picked up', 'Picked Up'),
-#         ('returned', 'Returned'),
-#         ('cancelled', 'Cancelled'),
-#     )
-#     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="orders")
-#     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="orders")
-#     order_type = models.CharField(max_length=20, choices=[('buying', 'Buying'), ('renting', 'Renting'), ('mixed', 'Mixed')])
-#     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-#     renting_details = models.JSONField(null=True, blank=True)
-#     billing_details = models.JSONField(null=True, blank=True)
-#     buying_status = models.CharField(max_length=20, choices=STATUS_CHOICES_BUYING, null=True, blank=True)
-#     renting_status = models.CharField(max_length=20, choices=STATUS_CHOICES_RENTING, null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     booking_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-#     payment_data = models.JSONField(null=True, blank=True)
-
-#     def __str__(self):
-#         return f"Order {self.id} - {self.order_type} for {self.company.company_name}"
-
-# class OrderItem(models.Model):
-#     ITEM_TYPE_CHOICES = (
-#         ('buying', 'Buying'),
-#         ('renting', 'Renting'),
-#     )
-#     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-#     quantity = models.PositiveIntegerField(default=1)
-#     price = models.DecimalField(max_digits=10, decimal_places=2)
-#     item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES, null=True, blank=True)  # Added item_type field
-
-#     def __str__(self):
-#         return f"{self.quantity} x {self.product.title} ({self.item_type}) in Order {self.order.id}"
-
-# class PaymentDistribution(models.Model):
-#     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payment_distributions")
-#     company = models.ForeignKey(Company, on_delete=models.CASCADE)
-#     amount = models.DecimalField(max_digits=10, decimal_places=2)
-#     payment_status = models.CharField(max_length=20, default='pending')
-#     payment_reference = models.CharField(max_length=255, null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     booking_id = models.CharField(max_length=255, null=True, blank=True)
-
-#     def __str__(self):
-#         return f"Payment of Rs. {self.amount} to {self.company.company_name} for Order {self.order.id}"
-
-
 class Order(models.Model):
     STATUS_CHOICES_BUYING = (
         ('paid', 'Paid'),
@@ -608,40 +546,6 @@ class Agreement(models.Model):
         return f"Agreement for {self.inquiry.full_name} - {self.service.name}"
     
 
-
-# from django.db import models
-# from django.utils import timezone
-# from datetime import timedelta
-
-# class Subscription(models.Model):
-#     PLAN_CHOICES = (
-#         ('monthly', 'Monthly'),
-#         ('quarterly', 'Quarterly'),
-#         ('yearly', 'Yearly'),
-#     )
-
-#     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='subscriptions')
-#     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
-#     start_date = models.DateTimeField(default=timezone.now)
-#     end_date = models.DateTimeField(null=True, blank=True)  # Allow null for trial
-#     trial_end_date = models.DateTimeField(null=True, blank=True)  # Track trial period
-#     grace_end_date = models.DateTimeField(null=True, blank=True)  # Track grace period
-#     is_active = models.BooleanField(default=True)
-#     payment_data = models.JSONField(null=True, blank=True)
-
-#     def save(self, *args, **kwargs):
-#         # Set end_date based on plan
-#         if not self.end_date:
-#             duration_days = {
-#                 'monthly': 30,
-#                 'quarterly': 90,
-#                 'yearly': 365,
-#             }
-#             self.end_date = self.start_date + timedelta(days=duration_days[self.plan])
-#         super().save(*args, **kwargs)
-
-#     def __str__(self):
-#         return f"{self.company.company_name} - {self.plan} Subscription"
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
@@ -758,3 +662,104 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment for Inquiry {self.inquiry.id}"
+
+# # models.py
+# # models.py
+# from django.db import models
+# from django.conf import settings  # Import settings to use AUTH_USER_MODEL
+
+# class SupportRequest(models.Model):
+#     user = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.CASCADE,
+#         related_name='support_requests',
+#         null=True,
+#         blank=True
+#     )
+#     name = models.CharField(max_length=100)
+#     email = models.EmailField()
+#     subject = models.CharField(max_length=200)
+#     message = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"Support Request from {self.name or self.user.username if self.user else 'Anonymous'} - {self.subject}"
+
+# class Complaint(models.Model):
+#     user = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.CASCADE,
+#         related_name='complaints',
+#         null=True,
+#         blank=True
+#     )
+#     email = models.EmailField(null=True, blank=True)
+#     subject = models.CharField(max_length=200)
+#     category = models.CharField(max_length=50, choices=[
+#         ('Service Quality', 'Service Quality'),
+#         ('Payment Issue', 'Payment Issue'),
+#         ('Technical Problem', 'Technical Problem'),
+#         ('Other', 'Other')
+#     ])
+#     description = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"Complaint from {self.user.username if self.user else 'Anonymous'}: {self.subject} - {self.category}"
+from django.db import models
+from django.conf import settings
+
+class SupportRequest(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='support_requests',
+        null=True,
+        blank=True,
+        help_text="The user who submitted the support request, if authenticated."
+    )
+    name = models.CharField(max_length=100, help_text="Name of the submitter.")
+    email = models.EmailField(help_text="Email address for contact.")
+    subject = models.CharField(max_length=200, help_text="Subject of the support request.")
+    message = models.TextField(help_text="Detailed message of the support request.")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Timestamp when the request was created.")
+
+    def __str__(self):
+        return f"Support Request from {self.name or (self.user.username if self.user else 'Anonymous')} - {self.subject}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
+
+class Complaint(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='complaints',
+        null=True,
+        blank=True,
+        help_text="The user who submitted the complaint, if authenticated."
+    )
+    email = models.EmailField(null=True, blank=True, help_text="Email for anonymous submissions.")
+    subject = models.CharField(max_length=200, help_text="Subject of the complaint.")
+    category = models.CharField(
+        max_length=50,
+        choices=[
+            ('Service Quality', 'Service Quality'),
+            ('Payment Issue', 'Payment Issue'),
+            ('Technical Problem', 'Technical Problem'),
+            ('Other', 'Other')
+        ],
+        help_text="Category of the complaint."
+    )
+    description = models.TextField(help_text="Detailed description of the complaint.")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Timestamp when the complaint was created.")
+
+    def __str__(self):
+        return f"Complaint from {self.user.username if self.user else 'Anonymous'}: {self.subject} - {self.category}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at']),
+        ]
